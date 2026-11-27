@@ -36,14 +36,10 @@ open DirichletCharacter Filter Finset Real ZMod
 
 namespace New
 
-/-- Let `q₀ = P.q₀` and `d = P.d` be the modulus and the prime of the parameters `P`. Let
-`R_q(y) = primeRemainder d q y = ∑_{n ≤ y} λ(n) (1/n - 1/y) - log y / φ(q) - c_q`. Admissible data
-`D` for `P` include scales `x = D.x`, `x₁ = D.x₁` and `b` (`D.logB = log b`) with
-`(log b) ^ 100 ≤ x`, `x ^ 10⁶ ≤ x₁`, `x₁ ^ 10⁶ ≤ b` and `log log b ≥ 10¹² P.constantBound`, and an
-integer `m = D.m` in `[√x, 2 √x]`. Then `R_{q₀}(x) ≤ φ(q₀) log⁶ b / m + |R_{q₀}(x₁)| + log
-b · |R₁(x₁)|`. -/
-lemma Data.primeRemainder_le {P : Parameters} (D : Data P) :
-    primeRemainder P.d P.q₀ D.x ≤ P.q₀.totient * D.logB ^ 6 / D.m +
+/-- The common-sublattice budget gives a coefficient of five at the fifth power of log b
+for the finite prime-remainder estimate. -/
+lemma Data.primeRemainder_le_five_log_pow {P : Parameters} (D : Data P) :
+    primeRemainder P.d P.q₀ D.x ≤ (5 : ℝ) * P.q₀.totient * D.logB ^ 5 / D.m +
       |primeRemainder P.d P.q₀ D.x₁| + D.logB * |primeRemainder P.d 1 D.x₁| := by
   -- Write `R_{q₀}(x)` through the total remainder, divide the main inequality by `m a #Φ_b`, and
   -- use `f = φ(q₀) #Φ_a` and `#Φ_a ≤ #Φ_b log b`, where `Φ_a = D.aPlaces` and `Φ_b = D.bPlaces`.
@@ -59,24 +55,45 @@ lemma Data.primeRemainder_le {P : Parameters} (D : Data P) :
   have h_bPlaces_pos : (0 : ℝ) < #D.bPlaces :=
     (mul_pos_iff_of_pos_right h_logB_pos).1 (h_aPlaces_pos.trans_le h_card)
   have h_ratio : (#D.aPlaces : ℝ) / #D.bPlaces ≤ D.logB := (div_le_iff₀' h_bPlaces_pos).2 h_card
-  have h_main : D.totalRemainder ≤ D.f * D.a * D.logB ^ 5 / D.m :=
-    (le_div_iff₀' hm).2 (star_inequality D)
+  have h_main : D.totalRemainder ≤ 5 * D.f * D.a * D.logB ^ 4 / D.m :=
+    (le_div_iff₀' hm).2 (star_inequality_five D)
   calc primeRemainder P.d P.q₀ D.x
       = D.totalRemainder / (D.a * #D.bPlaces) + primeRemainder P.d P.q₀ D.x₁ -
           #D.aPlaces / #D.bPlaces * primeRemainder P.d 1 D.x₁ := by
         rw [D.totalRemainder_eq]
         field
-    _ ≤ D.f * D.a * D.logB ^ 5 / D.m / (D.a * #D.bPlaces) + |primeRemainder P.d P.q₀ D.x₁| +
+    _ ≤ 5 * D.f * D.a * D.logB ^ 4 / D.m / (D.a * #D.bPlaces) + |primeRemainder P.d P.q₀ D.x₁| +
           #D.aPlaces / #D.bPlaces * |primeRemainder P.d 1 D.x₁| := by
         grw [h_main, le_abs_self (primeRemainder P.d P.q₀ D.x₁), sub_eq_add_neg, ← mul_neg,
           neg_le_abs]
-    _ = P.q₀.totient * (#D.aPlaces / #D.bPlaces * D.logB ^ 5) / D.m +
+    _ = (5 : ℝ) * P.q₀.totient * (#D.aPlaces / #D.bPlaces * D.logB ^ 4) / D.m +
           |primeRemainder P.d P.q₀ D.x₁| +
           #D.aPlaces / #D.bPlaces * |primeRemainder P.d 1 D.x₁| := by
         rw [D.f_eq_card_aPlaces_mul, Nat.cast_mul]
         field
-    _ ≤ P.q₀.totient * D.logB ^ 6 / D.m + |primeRemainder P.d P.q₀ D.x₁| +
+    _ ≤ (5 : ℝ) * P.q₀.totient * D.logB ^ 5 / D.m + |primeRemainder P.d P.q₀ D.x₁| +
           D.logB * |primeRemainder P.d 1 D.x₁| := by grw [h_ratio, ← pow_succ']
+
+/-- Let `q₀ = P.q₀` and `d = P.d` be the modulus and the prime of the parameters `P`. Let
+`R_q(y) = primeRemainder d q y = ∑_{n ≤ y} λ(n) (1/n - 1/y) - log y / φ(q) - c_q`. Admissible data
+`D` for `P` include scales `x = D.x`, `x₁ = D.x₁` and `b` (`D.logB = log b`) with
+`(log b) ^ 100 ≤ x`, `x ^ 10⁶ ≤ x₁`, `x₁ ^ 10⁶ ≤ b` and `log log b ≥ 10¹² P.constantBound`, and an
+integer `m = D.m` in `[√x, 2 √x]`. Then `R_{q₀}(x) ≤ φ(q₀) log⁶ b / m + |R_{q₀}(x₁)| + log
+b · |R₁(x₁)|`. -/
+lemma Data.primeRemainder_le {P : Parameters} (D : Data P) :
+    primeRemainder P.d P.q₀ D.x ≤ P.q₀.totient * D.logB ^ 6 / D.m +
+      |primeRemainder P.d P.q₀ D.x₁| + D.logB * |primeRemainder P.d 1 D.x₁| := by
+  have hB : 0 < D.logB := Data.HasLogBound.pos D
+  have h5 : 5 ≤ D.logB := by
+    linarith [Real.log_le_sub_one_of_pos hB, D.constantBound_le, (Data.le_constantBound (P := P)).1]
+  apply D.primeRemainder_le_five_log_pow.trans
+  refine _root_.add_le_add ?_ le_rfl
+  refine _root_.add_le_add ?_ le_rfl
+  apply div_le_div_of_nonneg_right _ (Nat.cast_nonneg _)
+  calc _ = ((P.q₀.totient : ℝ) * D.logB^5) * 5 := by ring
+       _ ≤ ((P.q₀.totient : ℝ) * D.logB^5) * D.logB :=
+         mul_le_mul_of_nonneg_left h5 (by positivity)
+       _ = _ := by ring
 
 /-- Let `0 < ε < 1/100`. A term `D : Data P` (admissible data) bundles all the choices that the main
 inequality needs, among them integer scales `x`, `x₁`, `b` with `x ^ 10⁶ ≤ x₁` and `x₁ ^ 10⁶ ≤ b`

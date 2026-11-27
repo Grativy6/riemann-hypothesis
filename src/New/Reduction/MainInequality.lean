@@ -44,7 +44,7 @@ Notions from other files:
 ## What cancels, and where
 
 * The main amount, between the upper and the lower bound: the comparison step of
-  `star_inequality`.
+  `remainder_with_rank_share`.
 * The gains `∑ gain_l log l` in the size of the chain, against `log c_B`:
   `span_short_integralRamified_eq_top`.
 * The constant `c₁ = (logDerivMean d 1 1).re`, between the period and the expected value
@@ -66,8 +66,8 @@ Notions from other files:
 | index    | Theorems A (b), B | `320 log (1 + 2 b²) · #aPlaces · a · log x₁`    |
 | covolume | Theorem C         | `3 f a log⁴ b`                      |
 
-The index enters twice, and the table shows the doubled amount. The family has `n ≥ dim / 2`
-members, so `m rem` is at most twice the sum, and twice the sum is at most `f a log⁵ b`. The scales
+The doubled index is the amount in the table. The family has at least `(1 - 4/b²) dim` members.
+Keeping this share yields `m rem ≤ 5 f a log⁴ b` at the given scales. The scales
 are listed in `New.Reduction.Data.Sizes`.
 
 ## Relation to the literature
@@ -85,13 +85,11 @@ namespace New
 
 open Real Finset Data Module Submodule
 
-/-- **Main inequality.** For the data `D` we have `m rem ≤ f a log⁵ b`.
-
-The parameters `P` are a multiple `q₀` of `18480` and a prime `d ≡ q₀/2 - 1 mod q₀`. The scales are
-integers with `(log b) ^ 100 ≤ x`, `x ^ 10⁶ ≤ x₁`, `x₁ ^ 10⁶ ≤ b` and
-`log log b ≥ 10¹² P.constantBound`. -/
-theorem star_inequality {P : Parameters} (D : Data P) :
-    D.m * D.totalRemainder ≤ D.f * D.a * D.logB ^ 5 := by
+/-- The error after cancellation retains the lower bound on the rank share and the separate
+determinant cost. -/
+theorem remainder_with_rank_share {P : Parameters} (D : Data P) :
+    (1 - 4 / D.b^2) * (D.m * D.totalRemainder) ≤ 4 * (D.f * D.a * D.logB^4) +
+      320 * log (1 + 2 * D.b^2) * #D.aPlaces * D.a * D.logX₁ := by
   -- Choose many independent images of short integral forms, bound their covolume and index from
   -- above, and compare with the lower bound `integral_forms_long`.
   obtain ⟨h_dim_pos, t, h_translate_budget, h_span_dimension⟩ :
@@ -148,21 +146,75 @@ theorem star_inequality {P : Parameters} (D : Data P) :
   have h_main_cancelled : n * (D.m * D.totalRemainder) ≤ D.targetDim * totalErrorPerDim := by
     simp only [logNormBound, totalErrorPerDim] at h_volume_index_lower ⊢
     linarith only [h_volume_index_lower, h_main_comparison]
-  -- Divide by `n ≥ targetDim / 2 > 0`.
-  have h_half_dimension : (D.targetDim : ℝ) ≤ n * 2 := by
-    have h_share : 4 / D.b ^ 2 ≤ 2⁻¹ := D.le_of_hasLogBound
-    calc (D.targetDim : ℝ) = (1 - 2⁻¹) * D.targetDim * 2 := by ring
-      _ ≤ (1 - 4 / D.b ^ 2) * D.targetDim * 2 := by grw [h_share]
-      _ ≤ n * 2 := by grw [h_near_full_rank]
-  have hn_pos : (0 : ℝ) < n :=
-    pos_of_mul_pos_left ((Nat.cast_pos.2 h_dim_pos).trans_le h_half_dimension) zero_le_two
-  -- The errors are of smaller order than `f a log⁵ b`.
-  have h_error_budget : |2 * totalErrorPerDim| ≤ D.f * D.a * D.logB ^ 5 := D.le_of_hasLogBound
-  refine le_of_mul_le_mul_left ?_ hn_pos
-  calc n * (D.m * D.totalRemainder) ≤ D.targetDim * |totalErrorPerDim| := by
-        grw [h_main_cancelled, ← le_abs_self]
-    _ ≤ n * 2 * |totalErrorPerDim| := by grw [h_half_dimension]
-    _ = n * |2 * totalErrorPerDim| := by rw [abs_mul, Nat.abs_ofNat, mul_assoc]
-    _ ≤ n * (D.f * D.a * D.logB ^ 5) := by grw [h_error_budget]
+  have hL : 0 ≤ D.logX₁ := (HasLogBound.pos D).le
+  have hlog : 0 ≤ Real.log (1 + 2 * D.b^2) :=
+    Real.log_nonneg (by nlinarith [sq_nonneg D.b])
+  have hidx : 0 ≤ indexBudgetPerDim := by dsimp [indexBudgetPerDim]; positivity
+  have htotal : 0 ≤ totalErrorPerDim := by dsimp [totalErrorPerDim]; positivity
+  have hq : 0 < 1 - 4 / D.b^2 := by
+    have h : 4 / D.b^2 ≤ (2 : ℝ)⁻¹ := D.le_of_hasLogBound
+    linarith
+  have hn : (0 : ℝ) < n := (mul_pos hq (Nat.cast_pos.2 h_dim_pos)).trans_le h_near_full_rank
+  apply le_of_mul_le_mul_left (a := (n : ℝ)) _ hn
+  calc
+    _ = (1 - 4 / D.b^2) * (n * (D.m * D.totalRemainder)) := by ring
+    _ ≤ (1 - 4 / D.b^2) * (D.targetDim * totalErrorPerDim) :=
+      mul_le_mul_of_nonneg_left h_main_cancelled hq.le
+    _ = ((1 - 4 / D.b^2) * D.targetDim) * totalErrorPerDim := by ring
+    _ ≤ n * totalErrorPerDim := mul_le_mul_of_nonneg_right h_near_full_rank htotal
+    _ = _ := by dsimp [totalErrorPerDim, indexBudgetPerDim, sizeError]; ring
+
+/-- A coarse constant of five suffices at the fourth logarithmic power for these data. -/
+theorem star_inequality_five {P : Parameters} (D : Data P) :
+    D.m * D.totalRemainder ≤ 5 * D.f * D.a * D.logB^4 := by
+  have hB : 0 < D.logB := HasLogBound.pos D
+  have hb : 10 ≤ D.b := by
+    change 10 ≤ Real.exp D.logB
+    linarith [Real.add_one_le_exp D.logB, Real.log_le_sub_one_of_pos hB, D.constantBound_le,
+      (Data.le_constantBound (P := P)).1]
+  have hB3 : 3 ≤ D.logB := by
+    linarith [Real.log_le_sub_one_of_pos hB, D.constantBound_le, (Data.le_constantBound (P := P)).1]
+  have hL : 0 ≤ D.logX₁ := (HasLogBound.pos D).le
+  have hpoly : 1 + 2 * D.b^2 ≤ D.b^3 := by
+    nlinarith [mul_nonneg (show 0 ≤ D.b - 3 by linarith) (sq_nonneg D.b), sq_nonneg (D.b-1)]
+  have hl : Real.log (1 + 2 * D.b^2) ≤ 3 * D.logB := by
+    calc _ ≤ Real.log (D.b^3) := Real.log_le_log (by positivity) hpoly
+         _ = _ := by rw [Real.log_pow]; simp [Data.b]
+  have hlog0 : 0 ≤ Real.log (1 + 2 * D.b^2) := Real.log_nonneg (by nlinarith [sq_nonneg D.b])
+  have hcb : 640 * Real.log (1 + 2 * D.b^2) * D.logX₁ ≤ D.logB^4 := by
+    calc _ ≤ 640 * (3 * D.logB) * D.logX₁ := by gcongr
+         _ = D.logB * (1920 * D.logX₁) := by ring
+         _ ≤ D.logB * D.logB :=
+           mul_le_mul_of_nonneg_left (by linarith only [D.logX₁_le_logB, hL]) hB.le
+         _ ≤ D.logB^4 := by
+           have h := le_mul_of_one_le_right (sq_nonneg D.logB)
+             (show 1 ≤ D.logB^2 from one_le_pow₀ (by linarith))
+           nlinarith only [h]
+  have hcount : (#D.aPlaces : ℝ) ≤ D.f := by
+    exact_mod_cast (show #D.aPlaces ≤ D.f from Finset.card_le_univ _)
+  have hi : 2 * (320 * Real.log (1 + 2 * D.b^2) * #D.aPlaces * D.a * D.logX₁) ≤
+      D.f * D.a * D.logB^4 := by
+    calc _ = ((#D.aPlaces : ℝ) * D.a) * (640 * Real.log (1 + 2 * D.b^2) * D.logX₁) := by ring
+         _ ≤ _ := by gcongr
+  have hshare : (9 / 10 : ℝ) ≤ 1 - 4 / D.b^2 := by
+    have h : 4 / D.b^2 ≤ (1 / 10 : ℝ) :=
+      (div_le_iff₀ (by positivity)).2 (by nlinarith [sq_nonneg (D.b-10)])
+    linarith
+  by_cases hpos : 0 ≤ (D.m : ℝ) * D.totalRemainder
+  · have h := (mul_le_mul_of_nonneg_right hshare hpos).trans (remainder_with_rank_share D)
+    nlinarith only [h, hi]
+  · exact (le_of_lt (lt_of_not_ge hpos)).trans (by positivity)
+
+/-- The published right-hand side follows at the original scales. -/
+theorem star_inequality {P : Parameters} (D : Data P) :
+    D.m * D.totalRemainder ≤ D.f * D.a * D.logB ^ 5 := by
+  have hB : 0 < D.logB := HasLogBound.pos D
+  have h5 : 5 ≤ D.logB := by
+    linarith [Real.log_le_sub_one_of_pos hB, D.constantBound_le, (Data.le_constantBound (P := P)).1]
+  apply (star_inequality_five D).trans
+  calc _ = ((D.f : ℝ) * D.a * D.logB^4) * 5 := by ring
+       _ ≤ ((D.f : ℝ) * D.a * D.logB^4) * D.logB :=
+         mul_le_mul_of_nonneg_left h5 (by positivity)
+       _ = _ := by ring
 
 end New
