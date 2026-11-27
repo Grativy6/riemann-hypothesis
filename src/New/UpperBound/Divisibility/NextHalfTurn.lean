@@ -1,6 +1,7 @@
 module
 
 public import New.UpperBound.Divisibility.OddColumnFrame
+public import New.UpperBound.Divisibility.CrossPeriodMass
 import Mathlib.NumberTheory.LegendreSymbol.JacobiSymbol
 import Mathlib.Tactic
 
@@ -46,59 +47,17 @@ lemma period_144_facts (D : Data params) :
   exact ⟨exceptional_of_local_order_one hi ho mlarge,ho,ret,by
     rw [returnPairCount,ret,show 2088=72*29 by decide,gcd_with_coprime_cofactor t cop]⟩
 
-lemma index_eq_iff_mod72 (u v : ℕ) : boardIndex u=boardIndex v ↔ u ≡ v [MOD 72] := by
-  constructor
-  · intro same
-    have h := address_boardIndex u
-    rw [same] at h
-    exact h.symm.trans (address_boardIndex v)
-  · exact boardIndex_congr
-
-set_option maxRecDepth 4096 in
 /-- The two counts at period 144 sum to the actual number of high places in one 72-slot
 residue, independently of the additional digit. -/
 theorem paired_mass_at_144 (D : Data params) (ι : PadicPlace 38586239) (a : ℕ) :
     let l := D.anchorPrime 38586239 ι a
     ((D.highCount 38586239 l + D.highCount 38586239 (star l) : ℕ) : ℤ) =
       residueBoard D (boardIndex a).1 (boardIndex a).2 := by
-  classical
   intro l
-  obtain ⟨he,_,_,per⟩ := period_144_facts D
-  have split (u : ℕ) :
-      (if u ≡ a [MOD 144] then (1:ℕ) else 0)+(if u ≡ a+72 [MOD 144] then 1 else 0) =
-      if boardIndex u = boardIndex a then 1 else 0 := by
-    let r : Fin 144 := ⟨u%144,Nat.mod_lt _ (by decide)⟩
-    let b : Fin 144 := ⟨a%144,Nat.mod_lt _ (by decide)⟩
-    have rx : r.val ≡ u [MOD 144] := Nat.mod_modEq _ _
-    have byy : b.val ≡ a [MOD 144] := Nat.mod_modEq _ _
-    have transfer {k x y x' y' : ℕ} (hx : x' ≡ x [MOD k]) (hy : y' ≡ y [MOD k]) :
-        (x ≡ y [MOD k]) ↔ x' ≡ y' [MOD k] :=
-      ⟨fun h ↦ hx.trans (h.trans hy.symm),fun h ↦ hx.symm.trans (h.trans hy)⟩
-    have two : 72 ∣ 144 := by decide
-    have middle := (index_eq_iff_mod72 u a).trans (transfer (rx.of_dvd two) (byy.of_dvd two))
-    have left := transfer rx byy
-    have right := transfer rx (byy.add_right 72)
-    have table : ∀ x y : Fin 144,
-        (if x.val ≡ y.val [MOD 144] then (1:ℕ) else 0)+(if x.val ≡ y.val+72 [MOD 144] then 1 else 0) =
-        if x.val ≡ y.val [MOD 72] then 1 else 0 := by decide
-    exact (congrArg₂ (fun x y : ℕ ↦ x+y) (if_congr left rfl rfl) (if_congr right rfl rfl)).trans
-      ((table r b).trans (if_congr middle.symm rfl rfl))
-  have nat : D.highCount 38586239 l + D.highCount 38586239 (star l) =
-      #{z ∈ D.bPlaces | boardIndex (D.negativeOffset z)=boardIndex a} := by
-    rw [highCount,highCount,card_filter,card_filter,card_filter,← sum_add_distrib]
-    apply sum_congr rfl
-    intro z hz
-    have orig : D.inducedPlace (p := 38586239) z=D.anchorPrime 38586239 ι (D.negativeOffset z) :=
-      congrArg (D.inducedPlace (p := 38586239)) (D.negativePlace_eq_offset (D.placeClass_of_mem_bPlaces _ hz))
-    have left : D.inducedPlace (p := 38586239) z=l ↔ D.negativeOffset z ≡ a [MOD 144] := by
-      change _=D.anchorPrime 38586239 ι a ↔ _
-      rw [orig,he.anchorPrime_eq_iff,per]
-    have right : D.inducedPlace (p := 38586239) z=star l ↔ D.negativeOffset z ≡ a+72 [MOD 144] := by
-      change _=star (D.anchorPrime 38586239 ι a) ↔ _
-      rw [orig,← he.anchorPrime_conjugate,he.anchorPrime_eq_iff,per]
-    simpa only [left,right] using split (D.negativeOffset z)
-  change ((_+_ : ℕ):ℤ) = ((#{z ∈ D.bPlaces | boardIndex (D.negativeOffset z)=boardIndex a} : ℕ):ℤ)
-  exact congrArg (fun n : ℕ ↦ (n:ℤ)) nat
+  obtain ⟨he,_,_,period⟩ := period_144_facts D
+  have both := he.total_at_pair ι a
+  rw [period] at both
+  exact (congrArg (fun n : ℕ ↦ (n:ℤ)) both).trans (offsetMass_at_boardIndex D a)
 
 /-- All nine columns are invisible on the 72-slot board. On the very same data,
 p=38,586,239 detects a nonunit precisely in the occupied residue class modulo nine.
