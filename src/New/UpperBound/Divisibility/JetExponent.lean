@@ -5,7 +5,7 @@ import Mathlib.Algebra.Order.Star.Real
 import Mathlib.Data.Rat.Cast.OfScientific
 import Mathlib.Tactic.Monotonicity.Lemmas
 public import New.Derivatives.Divisibility.Count
-public import New.UpperBound.Size.ShortColumns
+public import New.UpperBound.Divisibility.CollisionDeficit
 import New.Derivatives.Sharpness.NearPairs
 
 /-!
@@ -297,17 +297,18 @@ modulo `q₁`. With `a = x b` the product of the scales `x` and `b`, the weight 
 `a / x` at the b-places and `a / x₁` elsewhere. Let `L = longRow S` be `a` at the a-places outside
 `S` and `0` elsewhere, and let `c = lowColumns j` count the columns of height below `n_{j+1}` other
 than `1`. For an a-place `τ` the number `(a / p ^ e - w τ')₊` is at most
-`(L τ / p ^ e - L τ' - c τ')₊ + x ^ 60`, plus `a / p ^ e` if `τ ∈ S` or if `(τ, e)` is a collision.
+`(L τ / p ^ e - L τ' - c τ')₊ + x ^ 60`, plus `a / p ^ e` for a removed row or
+`(a / p ^ e - a / x₁)₊` for a collision.
 For `τ ∈ S` and `e = 1` the bound still holds with `a / x₁` added on the left. -/
 lemma posPart_sub_weight_le_posPart_longRow (hj : j < D.m) (hp : D.IsSmallNonsplit p)
-    (S : Finset D.Φ) (τ : D.Φ) {e : ℕ} (he : e ∈ positivePartnerExponents P.d p)
-    [Decidable (D.IsCollision p S τ e)] :
+    (S : Finset D.Φ) (τ : D.Φ) {e : ℕ} (he : e ∈ positivePartnerExponents P.d p) :
     (if τ ∈ D.aPlaces then (D.a / p ^ e - D.weight (D.placeOfInt (-p ^ e) * τ) : ℝ)⁺ else 0) +
         (if e = 1 ∧ τ ∈ D.aPlaces ∩ S then D.a / D.x₁ else 0) ≤
       (longRow S τ / p ^ e - longRow S (D.placeOfInt (-p ^ e) * τ) -
           D.lowColumns j (D.placeOfInt (-p ^ e) * τ))⁺ +
         (if τ ∈ D.aPlaces ∩ S then (D.a / p ^ e : ℝ) else 0) +
-        (if D.IsCollision p S τ e then (D.a / p ^ e : ℝ) else 0) + D.x ^ 60 := by
+        D.collisionDeficitAt p S τ e + D.x ^ 60 := by
+  classical
   set τ' : D.Φ := D.placeOfInt (-p ^ e) * τ with hτ'
   have hp_pos : (0 : ℝ) < p := mod_cast q.out.pos
   have h_quot : (0 : ℝ) ≤ D.a / p ^ e := by positivity
@@ -316,9 +317,10 @@ lemma posPart_sub_weight_le_posPart_longRow (hj : j < D.m) (hp : D.IsSmallNonspl
   by_cases h_aPlace : τ ∈ D.aPlaces
   swap
   · simp only [h_aPlace, mem_inter, false_and, and_false, ite_false, add_zero]
+    have := D.collisionDeficitAt_nonneg p S τ e
     positivity
   have h_nonneg : (0 : ℝ) ≤ D.weight τ' := Nat.cast_nonneg _
-  simp only [IsCollision, ← hτ', mem_inter, h_aPlace, he, posPart_def, longRow]
+  simp only [collisionDeficitAt, IsCollision, ← hτ', mem_inter, h_aPlace, he, posPart_def, longRow]
   by_cases h_removed : τ ∈ S
   · -- A removed row: only the surplus at `e = 1` is to be absorbed.
     have h_surplus (h_one : e = 1) : (D.a / D.x₁ : ℝ) ≤ D.a / p ^ e := by
@@ -416,15 +418,15 @@ class `1` modulo `q₀`) plus `k s_p(w(τ), τ)` with `k` the rank of the source
 `v a / x₁` if `τ` is an a-place in `S`. It is at most `v` times the sum of three terms, plus `γ_p`
 times the number `lowColumns j τ` of columns of height below `n_{j+1}` other than `1`, plus `γ_p a`
 if `τ` is an a-place in `S`. The three terms are the series of `partnerTerm p j S τ e`, the series
-of `a / p ^ e` over the `e ∈ I_p` such that `τ` and `(-p ^ e) τ` are a-places outside `S`
-(collisions), and `2 x ^ 60` for each of the `clog p ⌈x₁⌉₊` exponents `e` with `p ^ e < x₁`. -/
+of `(a / p ^ e - a / x₁)₊` over collisions below the cutoff, and `2 x ^ 60` for each of the
+`clog p ⌈x₁⌉₊` exponents `e` with `p ^ e < x₁`. -/
 lemma localPrimeSum_add_le_mul_tsum_partnerTerm_add (hj : j < D.m) (hp : D.IsSmallNonsplit p)
     (S : Finset D.Φ) (τ : D.Φ) :
     (if τ ∈ D.aPlaces then D.localPrimeSum p D.a τ else 0) +
         D.k * D.localPrimeSum p (D.weight τ) τ +
         piPrimeValuation P.d p * (if τ ∈ D.aPlaces ∩ S then D.a / D.x₁ else 0) ≤
       piPrimeValuation P.d p * ((∑' e : ℕ, partnerTerm p j S τ e) +
-          (∑' e : ℕ, if D.IsCollision p S τ e then (D.a / p ^ e : ℝ) else 0) +
+          (∑ e ∈ range (clog p ⌈D.x₁⌉₊), D.collisionDeficitAt p S τ e) +
           clog p ⌈D.x₁⌉₊ * (2 * D.x ^ 60)) +
         gammaPrime P.d p * (D.lowColumns j τ + if τ ∈ D.aPlaces ∩ S then (D.a : ℝ) else 0) := by
   -- Divide by `v`. Each of the seven terms is then the sum of a series in `e`; compare the series
@@ -437,7 +439,7 @@ lemma localPrimeSum_add_le_mul_tsum_partnerTerm_add (hj : j < D.m) (hp : D.IsSma
         ∑' e : ℕ, partnerTerm p j S τ e +
           (D.lowColumns j τ + if τ ∈ D.aPlaces ∩ S then (D.a : ℝ) else 0) * gammaPrime P.d p /
             piPrimeValuation P.d p +
-          (∑' e : ℕ, if D.IsCollision p S τ e then (D.a / p ^ e : ℝ) else 0) +
+          (∑ e ∈ range (clog p ⌈D.x₁⌉₊), D.collisionDeficitAt p S τ e) +
           clog p ⌈D.x₁⌉₊ * (2 * D.x ^ 60) by
     rw [← boole_mul (τ ∈ D.aPlaces)]
     refine le_of_eq_of_le ?_ ((mul_le_mul_of_nonneg_left h_div hv_pos.le).trans_eq ?_)
@@ -457,13 +459,7 @@ lemma localPrimeSum_add_le_mul_tsum_partnerTerm_add (hj : j < D.m) (hp : D.IsSma
       ((D.lowColumns j τ + if τ ∈ D.aPlaces ∩ S then (D.a : ℝ) else 0) * gammaPrime P.d p /
         piPrimeValuation P.d p) :=
     hasSum_div_pow_positivePartnerExponents P.d p _
-  have h_coll : Summable fun e : ℕ ↦ if D.IsCollision p S τ e then (D.a / p ^ e : ℝ) else 0 := by
-    refine (hasSum_div_pow_positivePartnerExponents P.d p D.a).summable.of_nonneg_of_le
-      (fun e ↦ by positivity) fun e ↦ ?_
-    by_cases h_collision : D.IsCollision p S τ e
-    · rw [ite_eq_left h_collision, ite_eq_left h_collision.1]
-    · rw [ite_eq_right h_collision]
-      positivity
+  have h_coll := D.hasSum_collisionDeficitAt (p := p) S τ
   have h_err : HasSum (fun e : ℕ ↦ if e ∈ range (clog p ⌈D.x₁⌉₊) then 2 * D.x ^ 60 else 0)
       (clog p ⌈D.x₁⌉₊ * (2 * D.x ^ 60)) := by
     convert hasSum_sum_of_ne_finset_zero (L := SummationFilter.unconditional ℕ)
@@ -471,12 +467,12 @@ lemma localPrimeSum_add_le_mul_tsum_partnerTerm_add (hj : j < D.m) (hp : D.IsSma
     simp [sum_ite_of_true]
   refine hasSum_le (fun e ↦ ?_)
     ((((h_gain D.a).mul_left _).add ((h_gain (D.weight τ)).mul_left _)).add h_surplus)
-    ((((summable_partnerTerm j S τ).hasSum.add h_full).add h_coll.hasSum).add h_err)
+    ((((summable_partnerTerm j S τ).hasSum.add h_full).add h_coll).add h_err)
   by_cases he : e ∈ positivePartnerExponents P.d p
   swap
   · have h_ne : e ≠ 1 := fun h_one ↦
       he (by simpa [h_one] using one_mem_positivePartnerExponents hp.2)
-    simpa [partnerTerm, IsCollision, he, h_ne] using by positivity
+    simpa [partnerTerm, collisionDeficitAt, IsCollision, he, h_ne] using by positivity
   simp only [partnerTerm, he, ite_true, add_div, ite_div, zero_div, ite_mul, one_mul, zero_mul,
     ← ite_and, Parameters.partner]
   by_cases h_small : e ∈ range (clog p ⌈D.x₁⌉₊)
@@ -490,6 +486,7 @@ lemma localPrimeSum_add_le_mul_tsum_partnerTerm_add (hj : j < D.m) (hp : D.IsSma
       posPart_eq_zero.2 <| sub_nonpos.2 <|
         (div_le_div₀ (Nat.cast_nonneg _) hy (HasLogBound.pos D) h_pow).trans (D.weight_mem_Icc σ).1
     have h_ne : e ≠ 1 := fun h_one ↦ hp.1.not_ge (by simpa [h_one] using h_pow)
+    rw [D.collisionDeficitAt_eq_zero_of_le_pow S τ h_pow]
     simp only [h_zero le_rfl, h_zero (D.le_of_hasLogBound : (D.weight τ : ℝ) ≤ D.a), h_ne, h_small,
       false_and, ite_false, ite_self, mul_zero, add_zero, ← add_assoc, sub_add_cancel]
     positivity
@@ -500,13 +497,13 @@ The bound `divisibilityBound p j S` is the predicted divisibility at `p` of the 
 `D.columnCount`, read below height `n_{j+1}` and with the columns of height one at `S` removed, plus
 `γ_p` for each removed box, less a logarithmic term. It is at least
 `gain p / m = ∑_τ s_p(a, τ) + k ∑_σ s_p(w(σ), σ)` (with `τ` an a-place, that is, of class `1` modulo
-`q₀`, `σ` any place, `s_p = localPrimeSum p` and `w = D.weight`), less `collisionSum p S`, the sum
-of `a / p ^ e` over the pairs `(τ, e)` with `e ∈ I_p` and both `τ` and `(-p ^ e) τ` a-places outside
-`S`, plus `v(π_p) a / x₁` for each a-place in `S`, less `f a (log b)² / (m p)`. Here
+`q₀`, `σ` any place, `s_p = localPrimeSum p` and `w = D.weight`), less `collisionDeficit p S`, the sum
+of `(a / p ^ e - a / x₁)₊` over the pairs `(τ, e)` with `e ∈ I_p` and both `τ`
+and `(-p ^ e) τ` a-places outside `S`, plus `v(π_p) a / x₁` for each a-place in `S`, less `f a (log b)² / (m p)`. Here
 `v(π_p) = piPrimeValuation P.d p`, `a = x b` is the length of a long row, `log b = D.logB`, and `f`
 is the number of infinite places of `E`. -/
 lemma le_divisibilityBound (hj : j < D.m) (hp : D.IsSmallNonsplit p) (S : Finset D.Φ) :
-    D.gain p / D.m - D.collisionSum p S +
+    D.gain p / D.m - D.collisionDeficit p S +
         piPrimeValuation P.d p * #(D.aPlaces ∩ S) * (D.a / D.x₁) -
         D.f * D.logB ^ 2 * (D.a / p) / D.m ≤
       D.divisibilityBound p j S := by
@@ -528,17 +525,16 @@ lemma le_divisibilityBound (hj : j < D.m) (hp : D.IsSmallNonsplit p) (S : Finset
           D.k * D.localPrimeSum p (D.weight τ) τ +
           v * (if τ ∈ D.aPlaces ∩ S then D.a / D.x₁ else 0) ≤
         v * ∑' e, partnerTerm p j S τ e + γ * (if τ ∈ D.aPlaces ∩ S then (D.a : ℝ) else 0) +
-          (∑' e : ℕ, if D.IsCollision p S τ e then (D.a / p ^ e : ℝ) else 0) + 2 * u := by
+          (∑ e ∈ range (clog p ⌈D.x₁⌉₊), D.collisionDeficitAt p S τ e) + 2 * u := by
     -- A collision costs at most `v ≤ 1` times its term.
     linarith [localPrimeSum_add_le_mul_tsum_partnerTerm_add hj hp S τ,
       gammaPrime_mul_lowColumns_le (p := p) hj τ,
-      mul_le_of_le_one_left (tsum_nonneg fun e ↦ by positivity :
-        0 ≤ ∑' e : ℕ, if D.IsCollision p S τ e then (D.a / p ^ e : ℝ) else 0) hv_le]
+      mul_le_of_le_one_left (sum_nonneg (s := range (clog p ⌈D.x₁⌉₊)) fun e _ ↦ D.collisionDeficitAt_nonneg p S τ e) hv_le]
   have h_sum : ∑ τ ∈ D.aPlaces, D.localPrimeSum p D.a τ + D.k * D.localPrimeSumTotal p +
         v * #(D.aPlaces ∩ S) * (D.a / D.x₁) ≤
-      v * ∑ τ, ∑' e, partnerTerm p j S τ e + γ * (#(D.aPlaces ∩ S) * D.a) + D.collisionSum p S +
+      v * ∑ τ, ∑' e, partnerTerm p j S τ e + γ * (#(D.aPlaces ∩ S) * D.a) + D.collisionDeficit p S +
         D.f * (2 * u) := by
-    simpa [sum_add_distrib, ← mul_sum, localPrimeSumTotal, collisionSum, mul_assoc, mul_left_comm,
+    simpa [sum_add_distrib, ← mul_sum, localPrimeSumTotal, collisionDeficit, mul_assoc, mul_left_comm,
       f,
       Core.numInfPlaces, -mem_inter, Finset.univ_inter _] using
       sum_le_sum (s := univ) fun τ _ ↦ h_place τ
