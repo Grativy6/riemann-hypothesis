@@ -110,3 +110,34 @@ theorem card_cast_fiber_mul {n m : ℕ} [NeZero n] [NeZero m] (hm : m ∣ n) (y 
   simpa only [Nat.card_eq_fintype_card, ZMod.card] using count
 
 end ReturnQuotient
+
+
+namespace ReturnOrientation
+
+/-- A first return congruent to one modulo R squares to one modulo 2R when R is even. -/
+theorem square_lifts {R z : ℤ} (hR : 2 ∣ R) (hz : R ∣ z-1) : 2*R ∣ z^2-1 := by
+  obtain ⟨d, hd⟩ := hR
+  obtain ⟨c, hc⟩ := hz
+  have hu : (2 : ℤ) ∣ z+1 := ⟨1+d*c, by rw [hd] at hc; linarith⟩
+  have h := mul_dvd_mul (show R ∣ z-1 from ⟨c,hc⟩) hu
+  convert h using 1 <;> ring
+
+/-- If the return does not already hold modulo 2R, the refined period is exactly two. -/
+theorem square_period_two {R : ℕ} (hR : 2 ∣ R) (z : ℤ)
+    (hz : (R : ℤ) ∣ z-1) (hn : ¬(2*(R : ℤ)) ∣ z-1) :
+    orderOf (z : ZMod (2*R)) = 2 := by
+  have hh := square_lifts (by exact_mod_cast hR) hz
+  have eq2 : (z : ZMod (2*R)) ^ 2 = 1 := by
+    have h0 := (ZMod.intCast_zmod_eq_zero_iff_dvd (z^2-1) (2*R)).2 (by exact_mod_cast hh)
+    push_cast at h0
+    exact sub_eq_zero.1 h0
+  have ne1 : (z : ZMod (2*R)) ≠ 1 := by
+    intro h
+    apply hn
+    have h0 : ((z-1 : ℤ) : ZMod (2*R)) = 0 := by push_cast; simpa using sub_eq_zero.2 h
+    have := (ZMod.intCast_zmod_eq_zero_iff_dvd (z-1) (2*R)).1 h0
+    exact_mod_cast this
+  exact ((Nat.dvd_prime Nat.prime_two).1 (orderOf_dvd_iff_pow_eq_one.2 eq2)).resolve_left
+    (fun h ↦ ne1 (orderOf_eq_one_iff.1 h))
+
+end ReturnOrientation

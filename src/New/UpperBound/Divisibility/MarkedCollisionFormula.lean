@@ -180,11 +180,8 @@ variable {Λ : Finset (FinPlace D.E)}
 
 open scoped Classical in
 /-- Any subset obtained by erasing one chosen prime is still a mark. -/
-theorem IsMarked.erase (h : D.IsMarked Λ) (l : FinPlace D.E) : D.IsMarked (Λ.erase l) where
-  star_notMem w hw hw' := h.star_notMem w (mem_of_mem_erase hw) (mem_of_mem_erase hw')
-  isExceptional := h.isExceptional
-  induced_by_aPlace w hw := h.induced_by_aPlace w (mem_of_mem_erase hw)
-  isSmallNonsplit := h.isSmallNonsplit
+theorem IsMarked.erase (h : D.IsMarked Λ) (l : FinPlace D.E) : D.IsMarked (Λ.erase l) :=
+  h.of_subset fun _ hw ↦ mem_of_mem_erase hw
 
 open scoped Classical in
 /-- Erasing one prime from a full mark leaves exactly one orbit of distinguished places.

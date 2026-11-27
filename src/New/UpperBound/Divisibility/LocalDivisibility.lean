@@ -9,7 +9,7 @@ public import New.UpperBound.Kernels.ThetaLiftGauge
 import New.UpperBound.Divisibility.ChainDatumExpansion
 import New.UpperBound.Divisibility.ChainValuation
 import New.UpperBound.Divisibility.ColengthAtLevel
-public import New.UpperBound.Divisibility.ArithmeticMark
+public import New.UpperBound.Divisibility.PartialMarkBudget
 import New.UpperBound.Divisibility.ValuationAtLevel
 import New.UpperBound.Divisibility.ValuationAtNonSplitPrimes
 
@@ -301,6 +301,39 @@ lemma IsWeakChainDatum.gaugeLe_pow_collisionExponent_smul (hΨ : IsWeakChainDatu
   rw [map_smul]
   exact h_gauge.rpow_mono (by linarith)
 
+/-- With a partial mark, the loss paying for transfer and low columns scales with the fraction
+of pairs selected. The m lifts still pay their finite collision deficit on the uncovered places. -/
+theorem IsWeakChainDatum.gaugeLe_restrictedChain_markedShare (hΨ : IsWeakChainDatum ϑ Ψ)
+    (hQ : p.Coprime ϑ.normQ) {v : D.SourceForm} (hv : v ∈ D.integralSourceForms)
+    (hΛ : D.IsMarked Λ) :
+    GaugeLe 1 (p ^ (D.m * D.collisionDeficit p (placesInducing Λ) + (1 + D.markedShare p Λ) * D.loss p - D.gain p))
+      (restrictedChain ϑ Ψ (((Λ.attach.toList.map hΛ.scaledHeckeOperator).prod ^ D.m) v)) := by
+  have hm_pos : 0 < (D.m : ℝ) := HasLogBound.pos D
+  let C := D.collisionDeficit p (placesInducing Λ)
+  -- Each lift loses C. The surplus at the marked places and the loss allowance pay for the
+  -- low columns and the transfer exponents.
+  have h_lift (j : ℕ) (hj : j ∈ range D.m) :
+      #Λ * D.transferExponent p + liftLoss Λ j ≤ C + ((1 + D.markedShare p Λ) * D.loss p - D.gain p) / D.m := by
+    have h_bound : D.gain p / D.m - C + #(D.aPlaces ∩ placesInducing Λ) * (D.a / D.x₁) -
+        D.f * D.logB ^ 2 * (D.a / p) / D.m ≤ D.divisibilityBound p j (placesInducing Λ) := by
+      have h_ne : p ≠ P.d := ne_of_chiK_ne_zero (by simp [hΛ.isExceptional.chiK_eq_neg_one])
+      simpa [C, piPrimeValuation_of_ne h_ne] using
+        le_divisibilityBound (mem_range.1 hj) hΛ.isSmallNonsplit (placesInducing Λ)
+    have h_low : #Λ * D.transferExponent p + D.ceilLogLifts p * ∑ σ ∈ placesInducing Λ,
+        D.lowColumns j σ ≤ D.markedShare p Λ * (D.loss p / D.m) + #(D.aPlaces ∩ placesInducing Λ) * (D.a / D.x₁) :=
+      hΛ.transfer_lowColumns_le_share (mem_range.1 hj)
+    have h_loss : D.f * D.logB ^ 2 * (D.a / p) / D.m ≤ D.loss p / D.m :=
+      div_le_div_of_nonneg_right (D.le_loss p) hm_pos.le
+    rw [liftLoss, sub_div, mul_div_assoc]
+    linarith
+  refine (hΨ.gaugeLe_scaledHeckeOperator_pow hQ hΛ hv).rpow_mono ?_
+  calc ∑ j ∈ range D.m, (#Λ * D.transferExponent p + liftLoss Λ j)
+      ≤ ∑ _j ∈ range D.m, (C + ((1 + D.markedShare p Λ) * D.loss p - D.gain p) / D.m) := sum_le_sum h_lift
+    _ = D.m * D.collisionDeficit p (placesInducing Λ) + (1 + D.markedShare p Λ) * D.loss p - D.gain p := by
+      rw [sum_const, card_range, nsmul_eq_mul, mul_add, mul_div_cancel₀ _ hm_pos.ne']
+      dsimp [C]
+      ring
+
 /-- **Valuation.** Let `Λ` be a marked set of primes above an exceptional prime `p` below `x₁`,
 and let `Y` be the product of the scaled Hecke operators at its members. The restricted chain on
 `(Y ^ m) v`, for an integral source form `v`, has valuation at least
@@ -311,31 +344,9 @@ theorem IsWeakChainDatum.gaugeLe_restrictedChain_markedDeficit (hΨ : IsWeakChai
     (hΛ : D.IsMarked Λ) :
     GaugeLe 1 (p ^ (D.m * D.collisionDeficit p (placesInducing Λ) + 2 * D.loss p - D.gain p))
       (restrictedChain ϑ Ψ (((Λ.attach.toList.map hΛ.scaledHeckeOperator).prod ^ D.m) v)) := by
-  have hm_pos : 0 < (D.m : ℝ) := HasLogBound.pos D
-  let C := D.collisionDeficit p (placesInducing Λ)
-  -- Each lift loses C. The surplus at the marked places and the loss allowance pay for the
-  -- low columns and the transfer exponents.
-  have h_lift (j : ℕ) (hj : j ∈ range D.m) :
-      #Λ * D.transferExponent p + liftLoss Λ j ≤ C + (2 * D.loss p - D.gain p) / D.m := by
-    have h_bound : D.gain p / D.m - C + #(D.aPlaces ∩ placesInducing Λ) * (D.a / D.x₁) -
-        D.f * D.logB ^ 2 * (D.a / p) / D.m ≤ D.divisibilityBound p j (placesInducing Λ) := by
-      have h_ne : p ≠ P.d := ne_of_chiK_ne_zero (by simp [hΛ.isExceptional.chiK_eq_neg_one])
-      simpa [C, piPrimeValuation_of_ne h_ne] using
-        le_divisibilityBound (mem_range.1 hj) hΛ.isSmallNonsplit (placesInducing Λ)
-    have h_low : #Λ * D.transferExponent p + D.ceilLogLifts p * ∑ σ ∈ placesInducing Λ,
-        D.lowColumns j σ ≤ D.loss p / D.m + #(D.aPlaces ∩ placesInducing Λ) * (D.a / D.x₁) :=
-      hΛ.card_mul_transferExponent_add_sum_lowColumns_le (mem_range.1 hj)
-    have h_loss : D.f * D.logB ^ 2 * (D.a / p) / D.m ≤ D.loss p / D.m :=
-      div_le_div_of_nonneg_right (D.le_loss p) hm_pos.le
-    rw [liftLoss, sub_div, mul_div_assoc]
-    linarith
-  refine (hΨ.gaugeLe_scaledHeckeOperator_pow hQ hΛ hv).rpow_mono ?_
-  calc ∑ j ∈ range D.m, (#Λ * D.transferExponent p + liftLoss Λ j)
-      ≤ ∑ _j ∈ range D.m, (C + (2 * D.loss p - D.gain p) / D.m) := sum_le_sum h_lift
-    _ = D.m * D.collisionDeficit p (placesInducing Λ) + 2 * D.loss p - D.gain p := by
-      rw [sum_const, card_range, nsmul_eq_mul, mul_add, mul_div_cancel₀ _ hm_pos.ne']
-      dsimp [C]
-      ring
+  have hL : 0 ≤ D.loss p := le_trans (by positivity) (D.le_loss p)
+  refine (hΨ.gaugeLe_restrictedChain_markedShare hQ hv hΛ).rpow_mono ?_
+  nlinarith only [mul_le_mul_of_nonneg_right hΛ.share_le_one hL]
 
 /-- Charging all reciprocal weights gives the coarse bound at the same marked product. -/
 theorem IsWeakChainDatum.gaugeLe_restrictedChain_of_isMarked (hΨ : IsWeakChainDatum ϑ Ψ)
@@ -431,6 +442,27 @@ lemma IsFullMark.returnProductIndexCost_eq (h : D.IsFullMark Λ) (j : ℕ) :
   have hh : (6 : ℝ) * (∑ l ∈ Λ, (D.heckeScalingExponent l : ℝ)) = 3 * D.a * #D.aPlaces := by linarith
   rw [hh]
   field_simp
+
+/-- The proved index allowance of the partial Hecke product scales by exactly the marked share. -/
+theorem IsMarked.returnProductIndexCost_eq_share (h : D.IsMarked Λ) (j : ℕ) :
+    D.returnProductIndexCost p Λ j = D.markedShare p Λ * D.fullReturnIndexCost p j := by
+  classical
+  let n := orderOf (D.placeOfInt (-(p : ℤ))) / D.o₀ p
+  have hc : 2*(#(D.aPlaces ∩ placesInducing Λ) : ℝ) = (#Λ : ℝ)*(n : ℝ) := by
+    exact_mod_cast h.twice_selected_eq
+  have hA : (D.returnPairCount p : ℝ)*(n : ℝ) = #D.aPlaces := by
+    exact_mod_cast returnPairCount_mul_period h.isExceptional.chiK_eq_neg_one h.isExceptional.odd_o₀
+  have hg : (D.returnPairCount p : ℝ) ≠ 0 := by exact_mod_cast (D.returnPairCount_pos p).ne'
+  have hm : (D.m : ℝ) ≠ 0 := (HasLogBound.pos D).ne'
+  have hf : (D.f : ℝ) ≠ 0 := (HasLogBound.pos D).ne'
+  have hs : 2*(D.returnPairCount p : ℝ)*(∑ l ∈ Λ, (D.heckeScalingExponent l : ℝ)) =
+      (#Λ : ℝ) * #D.aPlaces * D.a := by
+    rw [← Nat.cast_sum, sum_heckeScalingExponent, Nat.cast_mul, ← hA]
+    linear_combination (D.returnPairCount p : ℝ)*D.a*hc
+  unfold returnProductIndexCost fullReturnIndexCost markedShare
+  rw [sum_add_distrib, ← sum_mul, ← mul_sum, sum_const, nsmul_eq_mul]
+  field_simp [hg, hm, hf]
+  linear_combination 3 * (D.m : ℝ)^2 * (D.f : ℝ) * D.frobeniusDivisorFactor p (D.o₀ p) * hs
 
 omit [PadicPlace p] in
 /-- In a full mark the Hecke part of the per-dimension allowance is at most
@@ -572,11 +604,11 @@ lemma IsChainDatum.gaugeLe_compositeLift_of_clearance (hΨ : IsChainDatum ϑ Ψ)
     obtain ⟨_, ⟨u, hu, rfl⟩, _, ⟨v, hv, rfl⟩, h_sum⟩ := mem_sup.1 hφ
     exact ⟨u, hu, v, hv, h_sum⟩
   rw [h_eq, map_add]
-  have h_mark := hΨ'.gaugeLe_restrictedChain_markedDeficit hQ hu hΛ.toIsMarked
+  have h_mark := hΨ'.gaugeLe_restrictedChain_markedShare hQ hu hΛ.toIsMarked
   have h_zero : D.collisionDeficit p (placesInducing Λ) = 0 := le_antisymm
     ((D.collisionDeficit_le_collisionSum _).trans_eq hΛ.collisionSum_placesInducing_eq_zero)
     (D.collisionDeficit_nonneg _ _)
-  rw [h_zero, mul_zero, zero_add] at h_mark
+  rw [h_zero, mul_zero, zero_add, hΛ.toIsMarked.share_eq_one_iff.2 hΛ, one_add_one_eq_two] at h_mark
   exact h_mark.add
     (hΨ'.gaugeLe_scalar_of_collisionClearance hQ hv hΛ.isSmallNonsplit hj)
 
@@ -588,6 +620,29 @@ lemma IsChainDatum.gaugeLe_compositeLift_of_isFullMark (hΨ : IsChainDatum ϑ Ψ
       (p : embValRing) ^ D.collisionExponent p • D.integralSourceForms) :
     GaugeLe 1 (p ^ (2 * D.loss p - D.gain p)) (compositeLift ϑ Ψ φ) := by
   exact hΨ.gaugeLe_compositeLift_of_clearance hQ hΛ collisionClearance_le_collisionExponent hφ
+
+omit [PadicPlace p] in
+/-- A positive finite clearance at a small nonsplit prime forces the exceptional conditions. -/
+lemma exceptional_of_clearance_ne_zero (hs : D.IsSmallNonsplit p) (hc : D.collisionClearance p ≠ 0) :
+    D.IsExceptional p := by
+  by_contra notExc
+  have budget : D.m * D.collisionDeficit p ∅ ≤ D.loss p :=
+    (mul_le_mul_of_nonneg_left (D.collisionDeficit_le_collisionSum _) (Nat.cast_nonneg D.m)).trans
+      (mul_collisionSum_le_loss hs notExc)
+  exact hc (Nat.eq_zero_of_le_zero ((collisionClearance_le_iff 0).2 (by simpa using budget)))
+
+/-- Zero clearance gives the target gauge on the entire integral source module. -/
+theorem IsChainDatum.gaugeLe_on_integral_of_clearance_zero (hΨ : IsChainDatum ϑ Ψ)
+    (hQ : p.Coprime ϑ.normQ) (hs : D.IsSmallNonsplit p) (hc : D.collisionClearance p = 0)
+    {φ : D.SourceForm} (hφ : φ ∈ D.integralSourceForms) :
+    GaugeLe 1 (p ^ (2 * D.loss p - D.gain p)) (compositeLift ϑ Ψ φ) := by
+  obtain ⟨Ψ', hΨ', heq⟩ : ∃ Ψ' : D.Translations →₀ ℂ, IsWeakChainDatum ϑ Ψ' ∧
+      ∀ φ : D.SourceForm, compositeLift ϑ Ψ φ = restrictedChain ϑ Ψ' φ :=
+    hΨ.exists_isWeakChainDatum_compositeLift_eq
+  have budget := (collisionClearance_le_iff (D := D) (p := p) 0).1 hc.le
+  simp only [Nat.cast_zero, add_zero] at budget
+  rw [heq]
+  exact (hΨ'.gaugeLe_restrictedChain_collisionDeficit hQ hφ hs).rpow_mono (by linarith)
 
 end FixedPrime
 
@@ -604,15 +659,14 @@ theorem exists_colengthDvd_gaugeLe_compositeLift {P : Parameters} {D : Data P} {
       ∀ (ϑ : D.Twist) (Ψ : D.Translations →₀ ℂ), IsChainDatum ϑ Ψ → p.Coprime ϑ.normQ →
         ∀ φ ∈ S, φ ∈ D.ramifiedSourceForms →
           GaugeLe 1 (p ^ (D.allowedLoss p - D.gain p)) (compositeLift ϑ Ψ φ) := by
-  -- There are four cases: `p ≠ N` split or at least `x₁`; `p < x₁` non-split and not exceptional;
-  -- `p < x₁` exceptional; and `p = N`. Away from `N`, a chain datum expands into a weak chain
-  -- datum.
+  -- Away from the level, distinguish ordinary primes from small nonsplit primes.
+  -- At a small nonsplit prime the finite clearance decides whether the whole source suffices.
   have h_loss : 0 ≤ D.loss p := le_trans (by positivity) (D.le_loss p)
   have h_cases : (p ∉ D.smallNonsplitPrimes ∧ p ≠ D.N) ∨
-    (p ∈ D.smallNonsplitPrimes ∧ ¬D.IsExceptional p) ∨
-      (p ∈ D.smallNonsplitPrimes ∧ D.IsExceptional p) ∨ (p ∉ D.smallNonsplitPrimes ∧ p = D.N) := by
+    (p ∈ D.smallNonsplitPrimes ∧ D.collisionClearance p = 0) ∨
+      (p ∈ D.smallNonsplitPrimes ∧ D.collisionClearance p ≠ 0) ∨ (p ∉ D.smallNonsplitPrimes ∧ p = D.N) := by
     tauto
-  obtain ⟨h_mem, hN⟩ | ⟨h_mem, h_exc⟩ | ⟨h_mem, h_exc⟩ | ⟨h_mem, hN⟩ := h_cases
+  obtain ⟨h_mem, hN⟩ | ⟨h_mem, h_zero⟩ | ⟨h_mem, h_pos⟩ | ⟨h_mem, hN⟩ := h_cases
   · -- `p ≠ N` is split or at least `x₁`, so it differs from `d` and has no gain.
     obtain ⟨h_gain, h_loss_zero⟩ := gain_allowedLoss_eq_zero h_mem hN
     rw [h_loss_zero]
@@ -626,21 +680,15 @@ theorem exists_colengthDvd_gaugeLe_compositeLift {P : Parameters} {D : Data P} {
       hΨ.exists_isWeakChainDatum_compositeLift_eq
     rw [h_eq, h_gain, sub_zero, rpow_zero]
     exact hΨ'.gaugeLe_restrictedChain_one hQ hφ hN hd
-  · -- `p < x₁` is not exceptional: the loss pays for the collisions on all integral source forms.
+  · -- The unmarked collision deficit fits the loss. The zero-index module is the entire source.
     rw [allowedLoss, ite_eq_left h_mem]
-    have h_nonsplit : D.IsSmallNonsplit p := mem_smallNonsplitPrimes_iff_isSmallNonsplit.1 h_mem
-    have h_collision_budget : D.m * D.collisionSum p ∅ ≤ D.loss p :=
-      mul_collisionSum_le_loss h_nonsplit h_exc
-    refine ⟨0, D.integralSourceForms, mod_cast by positivity, .of_le le_rfl,
-      fun ϑ Ψ hΨ hQ φ hφ _ ↦ ?_⟩
-    obtain ⟨Ψ', hΨ', h_eq⟩ : ∃ Ψ' : D.Translations →₀ ℂ, IsWeakChainDatum ϑ Ψ' ∧
-        ∀ φ : D.SourceForm, compositeLift ϑ Ψ φ = restrictedChain ϑ Ψ' φ :=
-      hΨ.exists_isWeakChainDatum_compositeLift_eq
-    rw [h_eq]
-    exact (hΨ'.gaugeLe_restrictedChain_collisionSum hQ hφ h_nonsplit).rpow_mono (by linarith)
+    have hs : D.IsSmallNonsplit p := mem_smallNonsplitPrimes_iff_isSmallNonsplit.1 h_mem
+    exact ⟨0, D.integralSourceForms, mod_cast by positivity, .of_le le_rfl,
+      fun ϑ Ψ hΨ hQ φ hφ _ ↦ hΨ.gaugeLe_on_integral_of_clearance_zero hQ hs h_zero hφ⟩
   · -- At an exceptional prime the common module is `Y ^ m M + p ^ j M` for a full mark.
     -- Use the least exponent j covering the finite collision excess for both estimates.
     rw [allowedLoss, ite_eq_left h_mem]
+    have h_exc := exceptional_of_clearance_ne_zero (mem_smallNonsplitPrimes_iff_isSmallNonsplit.1 h_mem) h_pos
     let Λ := D.arithmeticMark p
     have hΛ : D.IsFullMark Λ :=
       h_exc.isFullMark_arithmeticMark (mem_smallNonsplitPrimes_iff_isSmallNonsplit.1 h_mem)
