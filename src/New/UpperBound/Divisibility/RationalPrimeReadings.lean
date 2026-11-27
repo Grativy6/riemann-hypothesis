@@ -19,17 +19,17 @@ integer scale. Irrational coordinates cannot be read from a single configuration
 open Finset
 namespace ColoredSparse
 
-/-- Clear the four denominators at once. The sum-one condition makes the common
+/-- Clear the denominators at once. The sum-one condition makes the common
 denominator exactly the total number of counted observations. -/
-theorem integer_population_of_rational_weights (a : Fin 4 → ℚ) (pos : ∀ i, 0 ≤ a i)
+theorem integer_population_of_rational_weights {ι : Type*} [Fintype ι] (a : ι → ℚ) (pos : ∀ i, 0 ≤ a i)
     (sum_one : ∑ i, a i = 1) :
-    ∃ w : Fin 4 → ℕ, 0 < ∑ i, w i ∧ ∀ i, (w i : ℚ) = ((∑ j, w j : ℕ) : ℚ) * a i := by
+    ∃ w : ι → ℕ, 0 < ∑ i, w i ∧ ∀ i, (w i : ℚ) = ((∑ j, w j : ℕ) : ℚ) * a i := by
   classical
   let d := ∏ i, (a i).den
   have dp : 0 < d := Finset.prod_pos (fun i _ ↦ (a i).den_pos)
-  have divs (i : Fin 4) : (a i).den ∣ d := dvd_prod_of_mem (fun i ↦ (a i).den) (mem_univ i)
+  have divs (i : ι) : (a i).den ∣ d := dvd_prod_of_mem (fun i ↦ (a i).den) (mem_univ i)
   let w := fun i ↦ (a i).num.natAbs * (d/(a i).den)
-  have wi (i : Fin 4) : (w i : ℚ) = (d : ℚ)*a i := by
+  have wi (i : ι) : (w i : ℚ) = (d : ℚ)*a i := by
     let z := a i
     have natnum : ((z.num.natAbs : ℕ) : ℚ) = (z.num : ℚ) := by
       rw [← Int.cast_natCast]
@@ -57,13 +57,12 @@ local instance : Fact (Nat.Prime 665279) := ⟨by norm_num1⟩
 noncomputable def populationPoint (w : Fin 4 → ℕ) : Point :=
   (((∑ i,w i : ℕ):ℝ)⁻¹) • ∑ c, (w c : ℝ) • corner c
 
-/-- A population witness identifies the normalized row of every individual high place.
-The slot index retains both its copy number and its assigned corner. -/
-theorem slot_row_eq_corner (D : Data params) {w : Fin 4 → ℕ} {k : ℕ}
+/-- Read the actual offset of every assigned high place before taking any signed sum. -/
+theorem slot_offset_modEq {ι : Type*} [Fintype ι] (address : ι → LaneAddress) (D : Data params) {w : ι → ℕ} {k : ℕ}
     (f : Sample k w ↪ D.Φ) (hd : 72*params.q₀ ∣ D.q₁) (B : D.bPlaces = univ.map f)
     (addr : ∀ a, (params.placeClass hd (f a) : ZMod (72*params.q₀)) =
-      -((1+params.q₀*cornerOffset a.2.1 : ℕ) : ZMod (72*params.q₀)))
-    (a : Sample k w) : row (D.negativeOffset (f a)) = corner a.2.1 := by
+      -((1+params.q₀*(address a.2.1).offset : ℕ) : ZMod (72*params.q₀)))
+    (a : Sample k w) : D.negativeOffset (f a) ≡ (address a.2.1).offset [MOD 72] := by
   classical
   have at_anchor : params.placeClass hd (D.placeOfInt (-1)) = -1 := by
     apply Units.ext
@@ -77,7 +76,16 @@ theorem slot_row_eq_corner (D : Data params) {w : Fin 4 → ℕ} {k : ℕ}
     simp
   have eq := neg_injective (read.symm.trans (addr a))
   rw [ZMod.natCast_eq_natCast_iff, mul_comm 72] at eq
-  exact (row_congr ((lifted_offsets_modEq (P := params) 72 _ _).1 eq)).trans (row_cornerOffset _)
+  exact (lifted_offsets_modEq (P := params) 72 _ _).1 eq
+
+/-- A population witness identifies the normalized row of every individual high place.
+The slot index retains both its copy number and its assigned corner. -/
+theorem slot_row_eq_corner (D : Data params) {w : Fin 4 → ℕ} {k : ℕ}
+    (f : Sample k w ↪ D.Φ) (hd : 72*params.q₀ ∣ D.q₁) (B : D.bPlaces = univ.map f)
+    (addr : ∀ a, (params.placeClass hd (f a) : ZMod (72*params.q₀)) =
+      -((1+params.q₀*cornerOffset a.2.1 : ℕ) : ZMod (72*params.q₀)))
+    (a : Sample k w) : row (D.negativeOffset (f a)) = corner a.2.1 := by
+  exact (row_congr (slot_offset_modEq cornerAddress D f hd B addr a)).trans (row_cornerOffset _)
 
 /-- The character readings average the actual labeled places. Each full population word
 has the same average, so the number of copies cancels in the normalized result. -/

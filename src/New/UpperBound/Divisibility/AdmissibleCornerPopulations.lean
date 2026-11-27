@@ -5,7 +5,7 @@ import Lib.Analytic.Primes
 import Mathlib.Tactic
 
 /-!
-# Admissible data for prescribed corner counts
+# Admissible data for prescribed counts at compatible addresses
 
 Macro exponents have fifth-power density. At the actual ranks their number is at least m,
 so any fixed population fits at every sufficiently large scale. Passing that exact set
@@ -17,17 +17,19 @@ through the level construction realizes the counts in the returned data.
 open NumberField Finset Real Filter
 namespace New.Data.CollisionPrimeExample
 
+variable {ι : Type*} [Fintype ι] [Nonempty ι]
+
 /-- At the project's ranks, a common tagged exponent pool can accommodate any prescribed
 population whose total is at most the lift rank. -/
-theorem population_from_ranks (w : Fin 4 → ℕ) (positive : 0 < ∑ i, w i)
+theorem population_from_ranks (address : ι → LaneAddress) (w : ι → ℕ) (positive : 0 < ∑ i, w i)
     {m r s n : ℕ} {y W : ℝ} (hy : 2 ≤ y) (hn : 0 < n)
     (hm : exp (y/2) ≤ m) (hr : r ≤ 3*exp (5*y)) (hPow : 2^s = m^22)
     (hs : s ≤ 32*y) (hW : W ≤ exp (y/2)) (hUpper : (2:ℝ)^s ≤ W^n)
     (large : 1e6*y ≤ W) (room : (5184*y)^n ≤ W) (count : 7776*y*n*2^n ≤ W)
     (den : (∑ i, w i) ≤ m) :
     ∃ B : Finset (params.Φ s), (∀ σ ∈ B, params.placeClass (params.q₀.dvd_mul_right (towerDeg s)) σ = -1) ∧
-      (towerDeg s : ℝ) ≤ #B * W^6 ∧ params.IsSparse s ((r+1-m)*(5*r)) B ∧ HasCornerPopulation s B w ∧
-        HasCornerMenu m r s B (∑ i,w i) := by
+      (towerDeg s : ℝ) ≤ #B * W^6 ∧ params.IsSparse s ((r+1-m)*(5*r)) B ∧ HasPopulation address s B w ∧
+        HasPopulationMenu address m r s B (∑ i,w i) := by
   have hw : 12 ≤ W := by linarith
   have hwm : W ≤ m := hW.trans hm
   have hm1 : 1 ≤ (m:ℝ) := by linarith
@@ -63,8 +65,8 @@ theorem population_from_ranks (w : Fin 4 → ℕ) (positive : 0 < ∑ i, w i)
     exact_mod_cast le_of_mul_le_mul_right mf (pow_pos (by linarith : 0 < (m:ℝ)) 5)
   have hexp : 1e6*y ≤ exp y := (large.trans hW).trans (exp_le_exp.2 (by linarith))
   have bounds := mul_rank_lt_two_pow (by linarith) hexp hm hr hPow hl
-  have choose (v : Fin 4 → ℕ) (same : (∑ i,v i) = ∑ i,w i) :=
-    select_sparse_population s3 h8 hspace split bounds S hlt free v (same ▸ positive)
+  have choose (v : ι → ℕ) (same : (∑ i,v i) = ∑ i,w i) :=
+    select_sparse_population address s3 h8 hspace split bounds S hlt free v (same ▸ positive)
       (same ▸ den.trans enough) (show 2 ≤ W by linarith) dense
   obtain ⟨B,base,card,sparse,source,mass⟩ := choose w rfl
   refine ⟨B,base,card,sparse,source,?_⟩
@@ -73,9 +75,9 @@ theorem population_from_ranks (w : Fin 4 → ℕ) (positive : 0 < ∑ i, w i)
   exact ⟨U,by rw [umass,mass,same],ubase,usparse,reading⟩
 
 /-- The data select the specified rational population at all sufficiently large integer scales. -/
-theorem eventually_has_population_frame (w : Fin 4 → ℕ) (positive : 0 < ∑ i, w i) :
-    ∀ᶠ x : ℕ in atTop, ∃ D : Data params, D.natX = x ∧ HasCornerPopulation D.towerExp D.bPlaces w ∧
-      HasCornerMenu D.m D.r D.towerExp D.bPlaces (∑ i,w i) := by
+theorem eventually_population_frame_at (address : ι → LaneAddress) (w : ι → ℕ) (positive : 0 < ∑ i, w i) :
+    ∀ᶠ x : ℕ in atTop, ∃ D : Data params, D.natX = x ∧ HasPopulation address D.towerExp D.bPlaces w ∧
+      HasPopulationMenu address D.m D.r D.towerExp D.bPlaces (∑ i,w i) := by
   let ε : ℝ := 1/200
   obtain ⟨n,scale⟩ := params.exists_eventually_isLargeScale (ε := ε) (by norm_num [ε]) (by norm_num [ε])
   have four : 4 ∣ params.q₀*params.d := by decide
@@ -92,15 +94,21 @@ theorem eventually_has_population_frame (w : Fin 4 → ℕ) (positive : 0 < ∑ 
       _ ≤ √(x:ℝ) := sqrt_le_sqrt sq
       _ ≤ m := hm)
   obtain ⟨m,r,s,b,B,g,α,N,β,adm,pop⟩ := hx.exists_isAdmissibleData_selecting
-    (fun m r s T ↦ HasCornerPopulation s T w ∧ HasCornerMenu m r s T (∑ i,w i)) window
-    (fun m r s hm hr hPow hs hw upper ↦ population_from_ranks w positive
+    (fun m r s T ↦ HasPopulation address s T w ∧ HasPopulationMenu address m r s T (∑ i,w i)) window
+    (fun m r s hm hr hPow hs hw upper ↦ population_from_ranks address w positive
       (by linarith [hx.hundred_le]) hx.n_pos hm hr hPow hs hw upper
       (by linarith [hx.mul_y_le_W]) hx.pow_le hx.mul_two_pow_le (rank_large hm))
   obtain ⟨D,fields,_,_,_,preserve⟩ := adm.exists_hasFields_preserving
-    (fun s T ↦ HasCornerPopulation s T w ∧ HasCornerMenu m r s T (∑ i,w i)) hx
+    (fun s T ↦ HasPopulation address s T w ∧ HasPopulationMenu address m r s T (∑ i,w i)) hx
   refine ⟨D,fields.natX_eq,?_⟩
   rw [fields.m_eq,fields.r_eq]
   exact preserve.2 pop
+
+/-- The four corners are the original specialization of the address construction. -/
+theorem eventually_has_population_frame (w : Fin 4 → ℕ) (positive : 0 < ∑ i, w i) :
+    ∀ᶠ x : ℕ in atTop, ∃ D : Data params, D.natX = x ∧ HasCornerPopulation D.towerExp D.bPlaces w ∧
+      HasCornerMenu D.m D.r D.towerExp D.bPlaces (∑ i,w i) :=
+  eventually_population_frame_at cornerAddress w positive
 
 /-- In particular the specified population itself is realized in the constructed data. -/
 theorem eventually_has_corner_population (w : Fin 4 → ℕ) (positive : 0 < ∑ i,w i) :

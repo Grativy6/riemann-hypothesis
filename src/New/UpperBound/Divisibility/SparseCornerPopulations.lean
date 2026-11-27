@@ -5,7 +5,7 @@ public import Mathlib.Data.Fintype.EquivFin
 import Mathlib.Tactic
 
 /-!
-# One sparse population of four corner types
+# One sparse population of labeled tower places
 
 Each selected observation is an actual tower place. The same assignment passes the prime-two
 and odd-prime tests. Complete copies of any prescribed finite population can then be selected
@@ -17,19 +17,23 @@ while retaining the sixth-power density.
 open Finset
 namespace ColoredSparse
 
-abbrev Sample (k : ℕ) (pop : Fin 4 → ℕ) := Fin k × (Σ c : Fin 4, Fin (pop c))
+variable {ι : Type*}
 
-lemma sample_card (k : ℕ) (pop : Fin 4 → ℕ) :
+abbrev Sample (k : ℕ) (pop : ι → ℕ) := Fin k × (Σ c : ι, Fin (pop c))
+
+variable [Fintype ι]
+
+lemma sample_card (k : ℕ) (pop : ι → ℕ) :
     Fintype.card (Sample k pop) = k * ∑ i, pop i := by
   simp [Sample,Fintype.card_sigma]
 
-lemma sample_sum {A : Type*} [AddCommMonoid A] (k : ℕ) (pop : Fin 4 → ℕ) (F : Fin 4 → A) :
+lemma sample_sum {A : Type*} [AddCommMonoid A] (k : ℕ) (pop : ι → ℕ) (F : ι → A) :
     (∑ i : Sample k pop, F i.2.1) = k • ∑ c, pop c • F c := by
   simp [Sample,Fintype.sum_prod_type,Fintype.sum_sigma]
 
 /-- Select equally many copies of each full population word, losing a factor of at most two.
 The cardinal bound after rounding retains the required sixth-power density. -/
-theorem choose_population {S : Finset ℕ} (pop : Fin 4 → ℕ) (hd : 0 < ∑ i, pop i)
+theorem choose_population {S : Finset ℕ} (pop : ι → ℕ) (hd : 0 < ∑ i, pop i)
     (fits : (∑ i, pop i) ≤ #S) {T W : ℝ} (hW : 2 ≤ W) (dense : T ≤ #S*W^5) :
     ∃ k > 0, ∃ emb : Sample k pop ↪ ℕ, (∀ a, emb a ∈ S) ∧
        T ≤ (Fintype.card (Sample k pop) : ℝ)*W^6 ∧ k = #S/(∑ i,pop i) := by
@@ -64,28 +68,28 @@ end ColoredSparse
 namespace New.Data.CollisionPrimeExample
 open Finset Real NumberField ThreePrimeEnvelope ColoredSparse
 
-/-- Assign arbitrary corner labels to the macro exponents. The single resulting set of
+/-- Assign arbitrary compatible addresses to the macro exponents. The single resulting set of
 tower places passes both the prime-two and odd-prime tests. -/
-theorem sparse_tagged_family {s L q o : ℕ} (hs : 3 ≤ s) (hq : 8 ∣ q) (space : 14*l₀ s < q)
+theorem sparse_address_family {s L q o : ℕ} (hs : 3 ≤ s) (hq : 8 ∣ q) (space : 14*l₀ s < q)
     (split : 2^s = q*o) (hL : 2*l₀ s*(L+1) < 2^s) (S : Finset ℕ)
     (lt : ∀ e ∈ S, e < o)
     (free : ∀ a ∈ S, ∀ b ∈ S, ∀ c ∈ S, ∀ i j : ℕ, 0 < i → 0 < j → i+j ≤ 2*l₀ s →
-       (i+j)*b ≡ i*a+j*c [MOD o] → a=b ∧ b=c) (tag : ℕ → Fin 4) :
-    let place := fun e ↦ cornerPlace hs hq e (tag e)
+       (i+j)*b ≡ i*a+j*c [MOD o] → a=b ∧ b=c) (tag : ℕ → LaneAddress) :
+    let place := fun e ↦ lanePlace hs hq e (tag e)
     Set.InjOn place S ∧ params.IsSparse s L (S.image place) := by
   classical
   intro place
   let g := params.placeOfInt s (3*l₀ s*params.q₀+1 : ℕ)
   let start := params.placeOfInt s (-1)
-  let digit := fun e ↦ (lowDigit s (tag e)).val
+  let digit := fun e ↦ ((tag e).lowDigit s).val
   let code := fun e ↦ q*e+digit e
   obtain ⟨v,hv,ho⟩ := params.exists_orderOf_placeClass_eq s
   let ψ := params.placeClass hv
   have ord : orderOf (ψ g) = q*o := ho.trans split
-  have shape (e : ℕ) : ψ (place e) = ψ start * (ψ g)^(code e) := cornerPlace_two hs hq hv e (tag e)
+  have shape (e : ℕ) : ψ (place e) = ψ start * (ψ g)^(code e) := lanePlace_two hs hq hv e (tag e)
   have hl : 0 < l₀ s := by unfold l₀; positivity
   have qpos : 0 < q := by omega
-  have smallDigit (e : ℕ) : digit e ≤ 7 := by have ht := (lowDigit s (tag e)).isLt; exact Nat.le_of_lt_succ ht
+  have smallDigit (e : ℕ) : digit e ≤ 7 := by have ht := ((tag e).lowDigit s).isLt; exact Nat.le_of_lt_succ ht
   have digitq (e : ℕ) : digit e < q := by have := smallDigit e; omega
   have bounded (e : ℕ) (he : e ∈ S) : code e < orderOf (ψ g) := by
     rw [ord]
@@ -106,18 +110,18 @@ theorem sparse_tagged_family {s L q o : ℕ} (hs : 3 ≤ s) (hq : 8 ∣ q) (spac
   have base (σ) (hσ : σ ∈ S.image place) :
       params.placeClass (params.q₀.dvd_mul_right (towerDeg s)) σ = -1 := by
     obtain ⟨e,_,rfl⟩ := mem_image.1 hσ
-    exact cornerPlace_base hs hq e (tag e)
+    exact lanePlace_base hs hq e (tag e)
   refine ⟨inject, ?_⟩
   intro ℓ hℓ hb i j hi hij hj
   obtain rfl | odd := hℓ.eq_two_or_odd'
-  · let color := fun σ ↦ if h : ∃ e ∈ S, place e = σ then tag h.choose else 0
+  · let color := fun σ ↦ if h : ∃ e ∈ S, place e = σ then (tag h.choose).lane else 0
     have lane (σ) (hσ : σ ∈ S.image place) : params.placeClass (oddTower_dvd s) σ =
         params.placeClass (oddTower_dvd s) (oddLanePlace s (oddLane (color σ))) := by
       have found : ∃ e ∈ S, place e = σ := mem_image.1 hσ
-      have fixed : color σ = tag found.choose := dite_eq_left found
+      have fixed : color σ = (tag found.choose).lane := dite_eq_left found
       rw [fixed]
       exact (congrArg (params.placeClass (oddTower_dvd s)) found.choose_spec.2.symm).trans
-        (cornerPlace_odd hs hq found.choose (tag found.choose))
+        (lanePlace_odd hs hq found.choose (tag found.choose))
     exact prime_two_clear (S.image place) color base (oddTower_dvd s) lane hi hij hj
   · apply params.sparse_odd_from_projection g start hv place code S (fun e _ ↦ shape e) _ hL hℓ odd hb hi hij hj
     intro x hx y hy z hz a b ha hb hab h
@@ -126,39 +130,44 @@ theorem sparse_tagged_family {s L q o : ℕ} (hs : 3 ≤ s) (hq : 8 ∣ q) (spac
     exact free x hx y hy z hz a b ha hb hab
       (remove_tags qpos (smallDigit x) (smallDigit y) (smallDigit z) fits h)
 
-/-- A population witness uses an actual injection of complete, indexed copies of four
-prescribed counts into the set of tower places. -/
-def HasCornerPopulation (s : ℕ) (B : Finset (params.Φ s)) (w : Fin 4 → ℕ) : Prop :=
+variable {ι : Type*} [Fintype ι]
+
+/-- A population witness uses an actual injection of complete, indexed copies of a
+prescribed population into the set of tower places. -/
+def HasPopulation (address : ι → LaneAddress) (s : ℕ) (B : Finset (params.Φ s)) (w : ι → ℕ) : Prop :=
   ∃ hd : 72*params.q₀ ∣ params.q₁ s, ∃ k > 0, ∃ f : Sample k w ↪ params.Φ s,
     B = univ.map f ∧ ∀ a, (params.placeClass hd (f a) : ZMod (72*params.q₀)) =
-        -((1+params.q₀*cornerOffset a.2.1 : ℕ) : ZMod (72*params.q₀))
+        -((1+params.q₀*(address a.2.1).offset : ℕ) : ZMod (72*params.q₀))
 
 /-- For this denominator every population can use another eligible high set of the
 same cardinality at the same ranks and tower layer. -/
-def HasCornerMenu (m r s : ℕ) (B : Finset (params.Φ s)) (d : ℕ) : Prop :=
-  ∀ w : Fin 4 → ℕ, (∑ i,w i)=d → ∃ U : Finset (params.Φ s), #U = #B ∧
+def HasPopulationMenu (address : ι → LaneAddress) (m r s : ℕ) (B : Finset (params.Φ s)) (d : ℕ) : Prop :=
+  ∀ w : ι → ℕ, (∑ i,w i)=d → ∃ U : Finset (params.Φ s), #U = #B ∧
     (∀ σ ∈ U, params.placeClass (params.q₀.dvd_mul_right (towerDeg s)) σ = -1) ∧
-    params.IsSparse s ((r+1-m)*(5*r)) U ∧ HasCornerPopulation s U w
+    params.IsSparse s ((r+1-m)*(5*r)) U ∧ HasPopulation address s U w
+
+abbrev HasCornerPopulation := HasPopulation cornerAddress
+abbrev HasCornerMenu := HasPopulationMenu cornerAddress
 
 /-- Spend the fifth-power density by rounding the number of complete population words. -/
-theorem select_sparse_population {s L q o : ℕ} (hs : 3 ≤ s) (hq : 8 ∣ q) (space : 14*l₀ s < q)
+theorem select_sparse_population [Nonempty ι] (address : ι → LaneAddress) {s L q o : ℕ} (hs : 3 ≤ s) (hq : 8 ∣ q) (space : 14*l₀ s < q)
     (split : 2^s=q*o) (hL : 2*l₀ s*(L+1) < 2^s) (S : Finset ℕ)
     (lt : ∀ e ∈ S, e < o)
     (free : ∀ a ∈ S, ∀ b ∈ S, ∀ c ∈ S, ∀ i j : ℕ, 0 < i → 0 < j → i+j ≤ 2*l₀ s →
        (i+j)*b ≡ i*a+j*c [MOD o] → a=b ∧ b=c)
-    (w : Fin 4 → ℕ) (pos : 0 < ∑ i, w i) (fits : (∑ i, w i) ≤ #S)
+    (w : ι → ℕ) (pos : 0 < ∑ i, w i) (fits : (∑ i, w i) ≤ #S)
     {W : ℝ} (hw : 2 ≤ W) (dense : (towerDeg s : ℝ) ≤ #S*W^5) :
     ∃ B : Finset (params.Φ s), (∀ σ ∈ B, params.placeClass (params.q₀.dvd_mul_right (towerDeg s)) σ = -1) ∧
-      (towerDeg s : ℝ) ≤ #B * W^6 ∧ params.IsSparse s L B ∧ HasCornerPopulation s B w ∧
+      (towerDeg s : ℝ) ≤ #B * W^6 ∧ params.IsSparse s L B ∧ HasPopulation address s B w ∧
         #B = (#S/(∑ i,w i))*(∑ i,w i) := by
   classical
   obtain ⟨k,hk,emb,mem,cost,number⟩ := choose_population w pos fits hw dense
-  let tag := fun e ↦ if h : ∃ a, emb a=e then h.choose.2.1 else 0
+  let tag := fun e ↦ if h : ∃ a, emb a=e then h.choose.2.1 else Classical.arbitrary ι
   have label (a : Sample k w) : tag (emb a) = a.2.1 := by
     have yes : ∃ i, emb i=emb a := ⟨a,rfl⟩
     exact (dite_eq_left yes).trans (congrArg (fun i : Sample k w ↦ i.2.1) (emb.injective yes.choose_spec))
-  let place := fun e ↦ cornerPlace hs hq e (tag e)
-  obtain ⟨inj, sparse⟩ := sparse_tagged_family hs hq space split hL S lt free tag
+  let place := fun e ↦ lanePlace hs hq e (address (tag e))
+  obtain ⟨inj, sparse⟩ := sparse_address_family hs hq space split hL S lt free (fun e ↦ address (tag e))
   let f : Sample k w ↪ params.Φ s := ⟨fun a ↦ place (emb a), fun a b eq ↦ emb.injective (inj (mem a) (mem b) eq)⟩
   let B := univ.map f
   have sub : B ⊆ S.image place := by
@@ -168,12 +177,12 @@ theorem select_sparse_population {s L q o : ℕ} (hs : 3 ≤ s) (hq : 8 ∣ q) (
   refine ⟨B, ?_, ?_, sparse.mono sub, ⟨joint_dvd_tower hs,k,hk,f,rfl,?_⟩, ?_⟩
   · intro σ hσ
     obtain ⟨e,_,rfl⟩ := mem_image.1 (sub hσ)
-    exact cornerPlace_base hs hq e (tag e)
+    exact lanePlace_base hs hq e (address (tag e))
   · simpa [B] using cost
   · intro a
-    change (params.placeClass (joint_dvd_tower hs) (cornerPlace hs hq (emb a) (tag (emb a))) : ZMod (72*params.q₀)) = _
+    change (params.placeClass (joint_dvd_tower hs) (lanePlace hs hq (emb a) (address (tag (emb a)))) : ZMod (72*params.q₀)) = _
     rw [label]
-    exact cornerPlace_joint hs hq _ _
+    exact lanePlace_joint hs hq _ _
   · simp [B, number]
 
 end New.Data.CollisionPrimeExample
