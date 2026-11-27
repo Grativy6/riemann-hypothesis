@@ -2,7 +2,7 @@ module
 
 public import New.Reduction.Zeros.FifthCountCriterion
 public import New.Reduction.Zeros.FifthStrip
-public import New.Reduction.Zeros.FixedStripCount
+public import New.Reduction.Zeros.WeightedCountRectangle
 import Mathlib.Tactic
 
 /-!
@@ -33,11 +33,6 @@ theorem count_of_clear_families {d q : ℕ} [Fact d.Prime] [NeZero q] (hd : d �
     dsimp [r]
     rw [norm_inv, Complex.norm_natCast]
     exact inv_le_one_of_one_le₀ (by exact_mod_cast φpos)
-  have coeff (n : ℕ) (hn : 1 ≤ n) : ‖a n‖ ≤ 2 * Real.log ((n : ℝ) + 1) := by
-    simp only [a, Complex.norm_real, Real.norm_eq_abs, abs_of_nonneg (lambdaKResidueClass_nonneg d q n)]
-    exact (lambdaKResidueClass_le_two_mul_vonMangoldt n).trans (mul_le_mul_of_nonneg_left
-      (ArithmeticFunction.vonMangoldt_le_log.trans (Real.log_le_log (by exact_mod_cast (show 0 < n by omega))
-        (by linarith))) (by norm_num))
   have series (s : ℂ) (hs : 1 < s.re) : LSeries a s = G s + r / (s - 1) := by
     have s1 : s - 1 ≠ 0 := sub_ne_zero.2 (ne_of_apply_ne Complex.re (by simpa using hs.ne'))
     dsimp [a, G, r]
@@ -54,17 +49,8 @@ theorem count_of_clear_families {d q : ℕ} [Fact d.Prime] [NeZero q] (hd : d �
     have h := norm_logDerivMean_le (fun χ ↦ B χ (base χ) s sl sr si)
       (fun χ ↦ T (quadTwist χ d) (twists χ) s sl sr si)
     exact (norm_add_le _ _).trans (by linarith only [h, nr, L])
-  obtain ⟨K, hK⟩ := count_of_rectangle (by norm_num : (0 : ℝ) ≤ 2) (by norm_num : (0 : ℝ) ≤ 26002)
-    coeff analytic series rect
-  refine ⟨K, hK.mono fun x h ↦ ?_⟩
-  have eq : ((countError d q x : ℝ) : ℂ) = ∑ n ∈ Ioc 0 ⌊x⌋₊, a n - r * x := by
-    have zero : lambdaKResidueClass d q 0 = 0 := le_antisymm
-      (by simpa only [Nat.cast_zero, mul_zero] using lambdaKResidueClass_le_two_mul (d := d) (q := q) 0)
-      (lambdaKResidueClass_nonneg d q 0)
-    rw [countError, Icc_eq_cons_Ioc (Nat.zero_le _), Finset.sum_cons, zero, zero_add]
-    simp only [Complex.ofReal_sub, Complex.ofReal_sum, Complex.ofReal_mul, Complex.ofReal_inv, Complex.ofReal_natCast,
-      a, r, div_eq_inv_mul]
-  simpa only [← eq, Complex.norm_real, Real.norm_eq_abs] using h
+  exact weighted_count_of_rectangle (σ := 2/3) (by norm_num) (by norm_num) (by norm_num)
+    (by norm_num) (fun s hs ↦ analytic s (by linarith)) series rect
 
 /-- A sharp count bound gives a shortfall bound on every subinterval of one fifth
 cell. Both endpoints use the same constant, chosen after d is fixed. -/

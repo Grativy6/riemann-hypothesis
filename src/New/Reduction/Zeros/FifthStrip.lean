@@ -19,7 +19,8 @@ from its center. The gap between these radii makes the disk estimate uniform.
 open Complex Real Metric Set Filter DirichletCharacter
 namespace New.PrimeCutoff
 
-private lemma entire_growth {N : ℕ} [NeZero N] (χ : DirichletCharacter ℂ N) {s : ℂ}
+/-- Polynomial size of the pole-cleared function, including its principal factor. -/
+lemma entire_growth {N : ℕ} [NeZero N] (χ : DirichletCharacter ℂ N) {s : ℂ}
     (hs : 1 / 2 ≤ s.re) : ‖entireL χ s‖ ≤ 8 * N * (‖s‖ + 1) ^ 2 := by
   let b : ℂ := if χ = 1 then s else 1
   have bne : b ≠ 0 := by dsimp [b]; split <;> simp_all [ne_zero_of_re_pos (by linarith : 0 < s.re)]
@@ -29,7 +30,8 @@ private lemma entire_growth {N : ℕ} [NeZero N] (χ : DirichletCharacter ℂ N)
   calc _ ≤ (8 * N * ‖s‖) * (‖s‖ + 1) := mul_le_mul (norm_regularL_le_linear χ hs) bn (norm_nonneg _) (by positivity)
        _ ≤ _ := by nlinarith [show 0 ≤ 8 * (N : ℝ) * (‖s‖ + 1) by positivity]
 
-private lemma entire_center_lower {N : ℕ} [NeZero N] (χ : DirichletCharacter ℂ N) {c : ℂ}
+/-- Uniform positive lower bound at the center of each horizontal disk. -/
+lemma entire_center_lower {N : ℕ} [NeZero N] (χ : DirichletCharacter ℂ N) {c : ℂ}
     (hc : c.re = 2) : Real.exp (-(riemannZeta 2).re) ≤ ‖entireL χ c‖ := by
   have h := χ.exp_neg_re_riemannZeta_le_norm_LFunction (s := c) (by linarith)
   rw [hc] at h
