@@ -33,8 +33,11 @@ lemma referenceSign_anchor {G a b u : ℕ} (h : a ≡ b [MOD 2*G]) :
   exact congrArg₂ (fun x y : ℤ ↦ x-y) (if_congr (test (h.add_right G)) rfl rfl)
     (if_congr (test h) rfl rfl)
 
-def atReference (a : ℕ) (c : Fin 6) (i : Fin 3) : ℤ :=
-  ∑ j : Fin 4, referenceSign (probePeriod i) a (microRow c j)
+/-- Four-slot contribution for an arbitrary oriented pair period. -/
+def slotsAt (G a : ℕ) (c : Fin 6) : ℤ :=
+  ∑ j : Fin 4, referenceSign G a (microRow c j)
+
+abbrev atReference (a : ℕ) (c : Fin 6) (i : Fin 3) : ℤ := slotsAt (probePeriod i) a c
 
 lemma atReference_period (a : ℕ) (c : Fin 6) (i : Fin 3) :
     atReference (a%72) c i = atReference a c i := by

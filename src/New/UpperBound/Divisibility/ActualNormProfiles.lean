@@ -21,12 +21,12 @@ local instance : Fact (Nat.Prime 535919) := ⟨by norm_num1⟩
 local instance : Fact (Nat.Prime 665279) := ⟨by norm_num1⟩
 
 /-- The sum over the true tower places inducing a prescribed member of a conjugate pair. -/
-theorem signed_profile_of_orbit_word (D : Data params) {p : ℕ} [Fact p.Prime] (ι : PadicPlace p)
-    (he : D.IsExceptional p) {i : Fin 3} (period : D.returnPairCount p=probePeriod i)
+theorem signed_profile_at_period (D : Data params) {p : ℕ} [Fact p.Prime] (ι : PadicPlace p)
+    (he : D.IsExceptional p) {G : ℕ} (period : D.returnPairCount p=G) (per : 2*G ∣ 72)
     {w : Fin 6 → ℕ} {k : ℕ} (positive : 0<∑ c,w c)
     (card : #D.bPlaces = (4*k)*(∑ c,w c))
     (wit : HasPopulation orbitAddress D.towerExp D.bPlaces (orbitWord w)) (a : ℕ) :
-    D.signedCount p ι (D.anchorPrime p ι a) = (k:ℤ)*∑ c,(w c:ℤ)*atReference a c i := by
+    D.signedCount p ι (D.anchorPrime p ι a) = (k:ℤ)*∑ c,(w c:ℤ)*slotsAt G a c := by
   classical
   obtain ⟨hd,j,_,f,B,addr⟩ := wit
   have actual : #D.bPlaces = (4*j)*(∑ c,w c) := by
@@ -34,9 +34,17 @@ theorem signed_profile_of_orbit_word (D : Data params) {p : ℕ} [Fact p.Prime] 
   have eq : j=k := by have v := Nat.eq_of_mul_eq_mul_right positive (actual.symm.trans card); omega
   subst j
   rw [he.signedCount_anchor,period]
-  have per : 2*probePeriod i ∣ 72 := (by decide : ∀ j,2*probePeriod j ∣ 72) i
-  simpa only [atReference,nsmul_eq_mul] using orbit_sum_of_slots D f hd B addr
-    (referenceSign (probePeriod i) a) (fun _ _ m ↦ referenceSign_input (m.of_dvd per))
+  simpa only [slotsAt,nsmul_eq_mul] using orbit_sum_of_slots D f hd B addr
+    (referenceSign G a) (fun _ _ m ↦ referenceSign_input (m.of_dvd per))
+
+/-- Specialization to the three original probes. -/
+theorem signed_profile_of_orbit_word (D : Data params) {p : ℕ} [Fact p.Prime] (ι : PadicPlace p)
+    (he : D.IsExceptional p) {i : Fin 3} (period : D.returnPairCount p=probePeriod i)
+    {w : Fin 6 → ℕ} {k : ℕ} (positive : 0<∑ c,w c)
+    (card : #D.bPlaces = (4*k)*(∑ c,w c))
+    (wit : HasPopulation orbitAddress D.towerExp D.bPlaces (orbitWord w)) (a : ℕ) :
+    D.signedCount p ι (D.anchorPrime p ι a) = (k:ℤ)*∑ c,(w c:ℤ)*atReference a c i :=
+  signed_profile_at_period D ι he period ((by decide : ∀ j,2*probePeriod j ∣ 72) i) positive card wit a
 
 /-- Equality of the integer signed counts everywhere, and equality of all local character
 norms at places over the rational prime. Twists and lift indices may be chosen separately. -/
@@ -46,6 +54,27 @@ def EqualPrimeProfile {D : Data params} (c e : HighPlaceChoice D) (p : ℕ) [Fac
     ((p : 𝓞 D.E) ∈ l.asIdeal → ∀ (θ : c.toData.TameChar) (η : e.toData.TameChar) (j b : ℕ),
       ‖ιₚ ((c.toData.chainChar θ j).baseChange.atUniformizer l)‖ =
         ‖ιₚ ((e.toData.chainChar η b).baseChange.atUniformizer l)‖)
+
+/-- The negative-unit reference primes cover the support of the signed counts. Agreement
+there gives the full local norm comparison for any two assignments on the same field. -/
+theorem equalPrimeProfile_of_anchors {D : Data params} (c e : HighPlaceChoice D)
+    {p : ℕ} [Fact p.Prime] (ι : PadicPlace p) (he : D.IsExceptional p)
+    (same : ∀ a, c.toData.signedCount p ι (D.anchorPrime p ι a) =
+      e.toData.signedCount p ι (D.anchorPrime p ι a)) : EqualPrimeProfile c e p ι := by
+  intro l
+  have counts : c.toData.signedCount p ι l = e.toData.signedCount p ι l := by
+    by_cases seen : ∃ a, D.anchorPrime p ι a=l
+    · obtain ⟨a,rfl⟩ := seen;exact same a
+    · have absent : ∀ a,D.anchorPrime p ι a≠l := fun a h ↦ seen ⟨a,h⟩
+      rw [IsExceptional.signedCount_off_orbit (D := c.toData) he l absent,
+        IsExceptional.signedCount_off_orbit (D := e.toData) he l absent]
+  refine ⟨counts,?_⟩
+  intro above θ η j b
+  rw [norm_atUniformizer_eq_highSlope (D := c.toData) he.chiK_eq_neg_one above θ j,
+    norm_atUniformizer_eq_highSlope (D := e.toData) he.chiK_eq_neg_one above η b]
+  have slopes : c.toData.highSlope p l = e.toData.highSlope p l :=
+    congrArg (fun z : ℤ ↦ z * ((D.natB:ℤ)-D.offWeight)) counts
+  rw [slopes]
 
 theorem equalPrimeProfile_of_report {D : Data params} (c e : HighPlaceChoice D)
     {p : ℕ} [Fact p.Prime] (ι : PadicPlace p) (he : D.IsExceptional p)
@@ -67,20 +96,7 @@ theorem equalPrimeProfile_of_report {D : Data params} (c e : HighPlaceChoice D)
       signed_profile_of_orbit_word e.toData ι he per (size ▸ positive) ecard ev a]
     rw [weighted_sum_eq_of_exchanges (a := fun j ↦ (w j:ℤ)) (b := fun j ↦ (v j:ℤ)) eq _
       (exchanges_at_reference a i).1 (exchanges_at_reference a i).2]
-  intro l
-  have counts : c.toData.signedCount p ι l = e.toData.signedCount p ι l := by
-    by_cases seen : ∃ a, D.anchorPrime p ι a=l
-    · obtain ⟨a,rfl⟩ := seen;exact same a
-    · have absent : ∀ a,D.anchorPrime p ι a≠l := fun a h ↦ seen ⟨a,h⟩
-      rw [IsExceptional.signedCount_off_orbit (D := c.toData) he l absent,
-        IsExceptional.signedCount_off_orbit (D := e.toData) he l absent]
-  refine ⟨counts,?_⟩
-  intro above θ η j b
-  rw [norm_atUniformizer_eq_highSlope (D := c.toData) he.chiK_eq_neg_one above θ j,
-    norm_atUniformizer_eq_highSlope (D := e.toData) he.chiK_eq_neg_one above η b]
-  have slopes : c.toData.highSlope p l = e.toData.highSlope p l :=
-    congrArg (fun z : ℤ ↦ z * ((D.natB:ℤ)-D.offWeight)) counts
-  rw [slopes]
+  exact equalPrimeProfile_of_anchors c e ι he same
 
 /-- At every sufficiently large scale, every six-bin word in the same integer report
 has an assignment on this single frame. All the assignments agree after every shift and
