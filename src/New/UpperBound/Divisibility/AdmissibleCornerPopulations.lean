@@ -21,7 +21,7 @@ variable {ι : Type*} [Fintype ι] [Nonempty ι]
 
 /-- At the project's ranks, a common tagged exponent pool can accommodate any prescribed
 population whose total is at most the lift rank. -/
-theorem population_from_ranks (address : ι → LaneAddress) (w : ι → ℕ) (positive : 0 < ∑ i, w i)
+theorem population_from_ranks_with_margin (address : ι → LaneAddress) (w : ι → ℕ) (positive : 0 < ∑ i, w i)
     {m r s n : ℕ} {y W : ℝ} (hy : 2 ≤ y) (hn : 0 < n)
     (hm : exp (y/2) ≤ m) (hr : r ≤ 3*exp (5*y)) (hPow : 2^s = m^22)
     (hs : s ≤ 32*y) (hW : W ≤ exp (y/2)) (hUpper : (2:ℝ)^s ≤ W^n)
@@ -29,7 +29,7 @@ theorem population_from_ranks (address : ι → LaneAddress) (w : ι → ℕ) (p
     (den : (∑ i, w i) ≤ m) :
     ∃ B : Finset (params.Φ s), (∀ σ ∈ B, params.placeClass (params.q₀.dvd_mul_right (towerDeg s)) σ = -1) ∧
       (towerDeg s : ℝ) ≤ #B * W^6 ∧ params.IsSparse s ((r+1-m)*(5*r)) B ∧ HasPopulation address s B w ∧
-        HasPopulationMenu address m r s B (∑ i,w i) := by
+        HasPopulationMenu address m r s B (∑ i,w i) ∧ (towerDeg s : ℝ) ≤ 2*(#B:ℝ)*W^5 := by
   have hw : 12 ≤ W := by linarith
   have hwm : W ≤ m := hW.trans hm
   have hm1 : 1 ≤ (m:ℝ) := by linarith
@@ -69,10 +69,32 @@ theorem population_from_ranks (address : ι → LaneAddress) (w : ι → ℕ) (p
     select_sparse_population address s3 h8 hspace split bounds S hlt free v (same ▸ positive)
       (same ▸ den.trans enough) (show 2 ≤ W by linarith) dense
   obtain ⟨B,base,card,sparse,source,mass⟩ := choose w rfl
-  refine ⟨B,base,card,sparse,source,?_⟩
+  have sum_pos : 0 < #S/(∑ i,w i) := Nat.div_pos (den.trans enough) positive
+  have qr := Nat.mod_add_div #S (∑ i,w i)
+  rw [Nat.mul_comm (∑ i,w i) (#S/(∑ i,w i))] at qr
+  have rem := Nat.mod_lt #S positive
+  have fits := Nat.le_mul_of_pos_left (∑ i,w i) sum_pos
+  have budget : #S ≤ 2*#B := by rw [mass];omega
+  have margin : (towerDeg s : ℝ) ≤ 2*(#B:ℝ)*W^5 :=
+    dense.trans (mul_le_mul_of_nonneg_right (by exact_mod_cast budget) (by positivity))
+  refine ⟨B,base,card,sparse,source,?_,margin⟩
   intro v same
   obtain ⟨U,ubase,_,usparse,reading,umass⟩ := choose v same
   exact ⟨U,by rw [umass,mass,same],ubase,usparse,reading⟩
+
+/-- The sixth-power admissibility statement follows from the strengthened selection. -/
+theorem population_from_ranks (address : ι → LaneAddress) (w : ι → ℕ) (positive : 0 < ∑ i, w i)
+    {m r s n : ℕ} {y W : ℝ} (hy : 2 ≤ y) (hn : 0 < n)
+    (hm : exp (y/2) ≤ m) (hr : r ≤ 3*exp (5*y)) (hPow : 2^s = m^22)
+    (hs : s ≤ 32*y) (hW : W ≤ exp (y/2)) (hUpper : (2:ℝ)^s ≤ W^n)
+    (large : 1e6*y ≤ W) (room : (5184*y)^n ≤ W) (count : 7776*y*n*2^n ≤ W)
+    (den : (∑ i, w i) ≤ m) :
+    ∃ B : Finset (params.Φ s), (∀ σ ∈ B, params.placeClass (params.q₀.dvd_mul_right (towerDeg s)) σ = -1) ∧
+      (towerDeg s : ℝ) ≤ #B * W^6 ∧ params.IsSparse s ((r+1-m)*(5*r)) B ∧ HasPopulation address s B w ∧
+        HasPopulationMenu address m r s B (∑ i,w i) := by
+  obtain ⟨B,base,card,sparse,source,menu,_⟩ := population_from_ranks_with_margin address w positive
+    hy hn hm hr hPow hs hW hUpper large room count den
+  exact ⟨B,base,card,sparse,source,menu⟩
 
 /-- The data select the specified rational population at all sufficiently large integer scales. -/
 theorem eventually_population_frame_at (address : ι → LaneAddress) (w : ι → ℕ) (positive : 0 < ∑ i, w i) :
