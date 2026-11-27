@@ -1,6 +1,6 @@
 module
 
-public import New.Reduction.Zeros.ThinPrimeCriterion
+public import New.Reduction.Zeros.SquareSample
 import New.Reduction.OneSidedBound
 
 /-!
@@ -23,5 +23,14 @@ theorem community_selectedRemainderBounds : selectedRemainderBounds := by
 
 theorem riemannHypothesis_via_seventeenPool : RiemannHypothesis :=
   riemannHypothesis_of_selected_remainders community_selectedRemainderBounds
+
+/-- Supply the square-only criterion at the positive budget 1/1000 from the existing
+community arithmetic estimate. The selected cutoff is uniform in the prospective zero. -/
+theorem riemannHypothesis_via_square_samples : RiemannHypothesis := by
+  obtain ⟨K,_,_,_,sufficient⟩ := arbitrarily_light_square_RH_criterion (η := 1/1000) (by norm_num)
+  apply sufficient
+  apply (remainderBoundsOn_iff_squareBoundsOn _).1
+  intro d hd
+  exact community_selectedRemainderBounds d hd.1
 
 end New.TwistSelection
