@@ -531,15 +531,15 @@ private lemma odd_subset_with_room {α : Type*} {S : Finset α} {t cost allowanc
     _ = #(S.erase x) * (2 * cost) := by ring
     _ ≤ _ := mul_le_mul_of_nonneg_left room (Nat.cast_nonneg _)
 
-/-- The ranks allow an odd sparse set of high places entirely in the negative class modulo
-twelve times the base modulus. -/
-lemma Parameters.exists_isSparse_of_ranks_focused (P : Parameters) {m r s n : ℕ} {y W : ℝ} (hy : 2 ≤ y)
+/-- At the chosen ranks the digit-count factor is at most W. The original sparse set
+therefore satisfies the density estimate with W to the fourth power. -/
+lemma Parameters.exists_isSparse_of_ranks_four (P : Parameters) {m r s n : ℕ} {y W : ℝ} (hy : 2 ≤ y)
     (hn : 0 < n) (hm : exp (y / 2) ≤ m) (hr : r ≤ 3 * exp (5 * y)) (h_pow : 2 ^ s = m ^ 22)
     (hs : s ≤ 32 * y) (hW : W ≤ exp (y / 2)) (h_upper : 2 ^ s ≤ W ^ n) (h_large : 1e6 * y ≤ W)
     (h_room : (5184 * y) ^ n ≤ W) (h_count : 7776 * y * n * 2 ^ n ≤ W) :
     ∃ T : Finset (P.Φ s), (∀ σ ∈ T, P.placeClass (P.q₀.dvd_mul_right (towerDeg s)) σ = -1) ∧
-      towerDeg s ≤ #T * W ^ 6 ∧
-      P.IsSparse s ((r + 1 - m) * (5 * r)) T ∧ Odd #T ∧ P.NegOneFiber s 12 T := by
+      towerDeg s ≤ #T * W ^ 4 ∧
+      P.IsSparse s ((r + 1 - m) * (5 * r)) T := by
   have hW_one : 1 < W := by linarith
   have h_lower : W ≤ 2 ^ s :=
     calc W ≤ m ^ 22 := (hW.trans hm).trans (le_self_pow₀ (by linarith) (by norm_num))
@@ -556,13 +556,50 @@ lemma Parameters.exists_isSparse_of_ranks_focused (P : Parameters) {m r s n : �
   have dense : (towerDeg s : ℝ) ≤ #T * W ^ 4 := hcard.trans (by
     calc (#T : ℝ) * (3 * l₀ s * n * 2 ^ n * W ^ 3) ≤ #T * (W * W ^ 3) := by gcongr
       _ = _ := by ring)
-  have wt : 5 ≤ W := by linarith
+  exact ⟨T, hclass, dense, hsparse⟩
+
+/-- An odd subset can be placed at minus one modulo k times the base modulus whenever
+k divides the tower factor and the density allowance covers twice k. -/
+lemma Parameters.exists_isSparse_of_ranks_in_fiber (P : Parameters) {m r s n : ℕ} {y W : ℝ} (hy : 2 ≤ y)
+    (k : ℕ) [NeZero k] (hd : k ∣ towerDeg s) (hroom : 2*(k : ℝ) ≤ W^2)
+    (hn : 0 < n) (hm : exp (y / 2) ≤ m) (hr : r ≤ 3 * exp (5 * y)) (h_pow : 2 ^ s = m ^ 22)
+    (hs : s ≤ 32 * y) (hW : W ≤ exp (y / 2)) (h_upper : 2 ^ s ≤ W ^ n) (h_large : 1e6 * y ≤ W)
+    (h_room : (5184 * y) ^ n ≤ W) (h_count : 7776 * y * n * 2 ^ n ≤ W) :
+    ∃ T : Finset (P.Φ s), (∀ σ ∈ T, P.placeClass (P.q₀.dvd_mul_right (towerDeg s)) σ = -1) ∧
+      towerDeg s ≤ #T * W ^ 6 ∧
+      P.IsSparse s ((r + 1 - m) * (5 * r)) T ∧ Odd #T ∧ P.NegOneFiber s k T := by
+  have hW_one : 1 < W := by linarith
+  obtain ⟨T,hclass,dense,hsparse⟩ := P.exists_isSparse_of_ranks_four hy hn hm hr h_pow hs hW
+    h_upper h_large h_room h_count
   have tpos : 0 < (towerDeg s : ℝ) := by exact_mod_cast (show 0 < towerDeg s by unfold towerDeg; positivity)
   have spos : T.Nonempty := by
     apply card_pos.1
     by_contra! hz
     rw [Nat.eq_zero_of_le_zero hz, Nat.cast_zero, zero_mul] at dense
     exact tpos.not_ge dense
+  obtain ⟨V, hv, sp, fixed⟩ := P.focus_sparse_negative_unit hd spos hclass hsparse
+  have density : (towerDeg s : ℝ) ≤ #V * ((k : ℝ) * W^4) := dense.trans (by
+    calc (#T : ℝ)*W^4 ≤ ((k : ℝ) * #V)*W^4 := mul_le_mul_of_nonneg_right (by exact_mod_cast hv) (by positivity)
+      _ = _ := by ring)
+  have slack : 2*((k : ℝ)*W^4) ≤ W^6 := by
+    calc 2*((k : ℝ)*W^4) = (2*(k : ℝ))*W^4 := by ring
+      _ ≤ W^2*W^4 := mul_le_mul_of_nonneg_right hroom (by positivity)
+      _ = _ := by ring
+  obtain ⟨U, hU, ho, hu⟩ := odd_subset_with_room tpos (by positivity) density slack
+  exact ⟨U, fun _ hσ ↦ fixed.base (hU hσ), hu, sp.mono hU, ho, fixed.mono hU⟩
+/-- The ranks allow an odd sparse set of high places entirely in the negative class modulo
+twelve times the base modulus. -/
+lemma Parameters.exists_isSparse_of_ranks_focused (P : Parameters) {m r s n : ℕ} {y W : ℝ} (hy : 2 ≤ y)
+    (hn : 0 < n) (hm : exp (y / 2) ≤ m) (hr : r ≤ 3 * exp (5 * y)) (h_pow : 2 ^ s = m ^ 22)
+    (hs : s ≤ 32 * y) (hW : W ≤ exp (y / 2)) (h_upper : 2 ^ s ≤ W ^ n) (h_large : 1e6 * y ≤ W)
+    (h_room : (5184 * y) ^ n ≤ W) (h_count : 7776 * y * n * 2 ^ n ≤ W) :
+    ∃ T : Finset (P.Φ s), (∀ σ ∈ T, P.placeClass (P.q₀.dvd_mul_right (towerDeg s)) σ = -1) ∧
+      towerDeg s ≤ #T * W ^ 6 ∧
+      P.IsSparse s ((r + 1 - m) * (5 * r)) T ∧ Odd #T ∧ P.NegOneFiber s 12 T := by
+  have hW_one : 5 ≤ W := by linarith
+  have h_lower : W ≤ 2^s := calc
+    W ≤ m ^ 22 := (hW.trans hm).trans (le_self_pow₀ (by linarith) (by norm_num))
+    _ = 2 ^ s := mod_cast h_pow.symm
   have hs2 : 2 ≤ s := by
     by_contra! h
     interval_cases s <;> norm_num at h_lower <;> linarith
@@ -570,17 +607,8 @@ lemma Parameters.exists_isSparse_of_ranks_focused (P : Parameters) {m r s n : �
     obtain ⟨u,hu⟩ : 4 ∣ 2^s := pow_dvd_pow 2 hs2
     rw [towerDeg_eq, hu]
     exact ⟨l₀ s*u, by ring⟩
-  obtain ⟨V, hv, sp, fixed⟩ := P.focus_sparse_negative_unit hd spos hclass hsparse
-  have density : (towerDeg s : ℝ) ≤ #V * (12 * W^4) := dense.trans (by
-    calc (#T : ℝ)*W^4 ≤ (12 * #V)*W^4 := mul_le_mul_of_nonneg_right (by exact_mod_cast hv) (by positivity)
-      _ = _ := by ring)
-  have slack : 2*(12*W^4) ≤ W^6 := by
-    have sq : 24 ≤ W^2 := by nlinarith [sq_nonneg (W-5)]
-    calc 2*(12*W^4) = 24*W^4 := by ring
-      _ ≤ W^2*W^4 := mul_le_mul_of_nonneg_right sq (by positivity)
-      _ = _ := by ring
-  obtain ⟨U, hU, ho, hu⟩ := odd_subset_with_room tpos (by positivity) density slack
-  exact ⟨U, fun _ hσ ↦ fixed.base (hU hσ), hu, sp.mono hU, ho, fixed.mono hU⟩
+  exact P.exists_isSparse_of_ranks_in_fiber hy 12 hd (by norm_num; nlinarith [sq_nonneg (W-5)])
+    hn hm hr h_pow hs hW h_upper h_large h_room h_count
 
 /-- Let `2 ≤ y`, `0 < n`, `10⁶ y ≤ W ≤ exp (y / 2) ≤ m`, `r ≤ 3 exp (5 y)`,
 `2 ^ s = m ^ 22 ≤ W ^ n`, `s ≤ 32 y`, `(5184 y) ^ n ≤ W` and `7776 y n 2 ^ n ≤ W`. At least
@@ -807,16 +835,16 @@ lemma exists_isLeast_dvd_log_log_mem_Icc (h_scale : P.IsLargeScale n y W) (hs : 
 
 end Parameters.IsLargeScale
 
-/-- Realize admissible data while retaining the cardinality and refined residue class of the
-high places. -/
-lemma Parameters.IsAdmissibleData.exists_hasFields_highPlaces {P : Parameters} {x n m r s b N : ℕ} {W : ℝ}
+/-- Realizing the data preserves any predicate of the tower level and the selected high places. -/
+lemma Parameters.IsAdmissibleData.exists_hasFields_preserving {P : Parameters} {x n m r s b N : ℕ} {W : ℝ}
     {T : Finset (P.Φ s)} {g : Fin 2 → ℕ} {α : 𝓞 P.K} {β : 𝓞 (P.E s)}
+    (Q : (s : ℕ) → Finset (P.Φ s) → Prop)
     (h_adm : P.IsAdmissibleData x W m r s b T g α N β) (h_scale : P.IsLargeScale n (log x) W) :
     ∃ D : Data P,
       D.HasFields x W m r s b ∧
       W - 1 ≤ D.logX₁ ∧
       D.logB ∈ Set.Icc (W ^ 6) (W ^ 6 + 1) ∧ #D.bPlaces = #T ∧
-        (P.NegOneFiber D.towerExp 12 D.bPlaces ↔ P.NegOneFiber s 12 T) := by
+        (Q D.towerExp D.bPlaces ↔ Q s T) := by
   have hW_one : 1 ≤ W := h_scale.one_le
   have hy : 100 ≤ log x := h_scale.hundred_le
   have hx_pos : (0 : ℝ) < x := by linarith [log_le_self x.cast_nonneg]
@@ -871,6 +899,18 @@ lemma Parameters.IsAdmissibleData.exists_hasFields_highPlaces {P : Parameters} {
   have h_fields : D.HasFields x W m r s b := ⟨rfl, rfl, rfl, rfl, rfl, rfl⟩
   exact ⟨D, h_fields, hx₁_lower, h_log_b, rfl, Iff.rfl⟩
 
+/-- Realize admissible data while retaining the cardinality and refined residue class of the
+high places. -/
+lemma Parameters.IsAdmissibleData.exists_hasFields_highPlaces {P : Parameters} {x n m r s b N : ℕ} {W : ℝ}
+    {T : Finset (P.Φ s)} {g : Fin 2 → ℕ} {α : 𝓞 P.K} {β : 𝓞 (P.E s)}
+    (h_adm : P.IsAdmissibleData x W m r s b T g α N β) (h_scale : P.IsLargeScale n (log x) W) :
+    ∃ D : Data P,
+      D.HasFields x W m r s b ∧
+      W - 1 ≤ D.logX₁ ∧
+      D.logB ∈ Set.Icc (W ^ 6) (W ^ 6 + 1) ∧ #D.bPlaces = #T ∧
+        (P.NegOneFiber D.towerExp 12 D.bPlaces ↔ P.NegOneFiber s 12 T) := by
+  exact h_adm.exists_hasFields_preserving (fun s ↦ P.NegOneFiber s 12) h_scale
+
 /-- Let `W` be a large scale for `log x`, and let admissible data at `x` and `W` be given. A term
 `D : Data P` bundles such objects and scales `x`, `x₁` with the inequalities `(log b) ^ 100 ≤ x`,
 `x ^ 10⁶ ≤ x₁`, `x₁ ^ 10⁶ ≤ b`, `(log x₁) ^ 6 ≤ log b`, `10¹² P.constantBound ≤ log log b`,
@@ -903,15 +943,20 @@ theorem eventually_exists_data_of_isAdmissibleData (P : Parameters) {ε : ℝ} (
   filter_upwards [h_scale] with x hx m r s b T g α N β h_adm
   simpa only [rpow_div_six_pow_six] using h_adm.exists_hasFields hx
 
-/-- Choose admissible data whose high places have odd cardinality and lie over the negative unit
-modulo twelve times the base modulus. -/
-lemma Parameters.IsLargeScale.exists_isAdmissibleData_focused {P : Parameters} {x n : ℕ} {W : ℝ}
+/-- Once ranks have been chosen, any admissible high-place selection can be passed on to
+the level construction together with its extra property. -/
+lemma Parameters.IsLargeScale.exists_isAdmissibleData_picking {P : Parameters} {x n : ℕ} {W : ℝ}
+    (Q : (s : ℕ) → Finset (P.Φ s) → Prop)
     (h_scale : P.IsLargeScale n (log x) W)
     (h_window : ∀ k : ℕ, 1 < k → ((P.q₀ * P.d : ℕ) : ℝ) ^ k ≤ W ^ (n + 7) →
       ∀ U ∈ Set.Icc W (W ^ (n + 7)), ∃ p : ℕ,
-        p.Prime ∧ p ≡ 1 [MOD (P.q₀ * P.d) ^ k] ∧ log p ∈ Set.Icc U (U + W)) :
+        p.Prime ∧ p ≡ 1 [MOD (P.q₀ * P.d) ^ k] ∧ log p ∈ Set.Icc U (U + W))
+    (pick : ∀ (m r s : ℕ), exp (log x / 2) ≤ m → r ≤ 3 * exp (5 * log x) →
+      2^s = m^22 → s ≤ 32*log x → W ≤ exp (log x / 2) → (2:ℝ)^s ≤ W^n →
+        ∃ T : Finset (P.Φ s), (∀ σ ∈ T, P.placeClass (P.q₀.dvd_mul_right (towerDeg s)) σ = -1) ∧
+          towerDeg s ≤ #T * W^6 ∧ P.IsSparse s ((r+1-m)*(5*r)) T ∧ Odd #T ∧ Q s T) :
     ∃ (m r s b : ℕ) (T : Finset (P.Φ s)) (g : Fin 2 → ℕ) (α : 𝓞 P.K) (N : ℕ) (β : 𝓞 (P.E s)),
-      P.IsAdmissibleData x W m r s b T g α N β ∧ Odd #T ∧ P.NegOneFiber s 12 T := by
+      P.IsAdmissibleData x W m r s b T g α N β ∧ Odd #T ∧ Q s T := by
   have hW_one : 1 ≤ W := h_scale.one_le
   have hW_pos : 0 < W := by linarith
   have hy : 100 ≤ log x := h_scale.hundred_le
@@ -928,8 +973,7 @@ lemma Parameters.IsLargeScale.exists_isAdmissibleData_focused {P : Parameters} {
     h_two_pow.trans' (mod_cast (Nat.le_self_pow (by norm_num) m).trans h_pow.ge)
   have hm_lower : exp (log x / 2) ≤ m := hm.1.2
   -- places
-  obtain ⟨T, h_class_T, h_card, h_sparse, hodd, hfocus⟩ := P.exists_isSparse_of_ranks_focused (by linarith) h_scale.n_pos
-    hm_lower hr_upper h_pow hs hW_le h_two_pow (by linarith) h_scale.pow_le h_scale.mul_two_pow_le
+  obtain ⟨T, h_class_T, h_card, h_sparse, hodd, hfocus⟩ := pick m r s hm_lower hr_upper h_pow hs hW_le h_two_pow
   -- scales and weights
   obtain ⟨b, hb, hb_eq, hL, -⟩ := h_scale.exists_isLeast_dvd_log_log_mem_Icc hs
   set L : ℝ := log b
@@ -975,6 +1019,20 @@ lemma Parameters.IsLargeScale.exists_isAdmissibleData_focused {P : Parameters} {
       α_mul_star := h_norm
       N_prime := hN, N_modEq_one := hN_mod, log_N_mem := hN_log, β_mul_star := hβ }, hodd, hfocus⟩
 
+/-- Choose admissible data whose high places have odd cardinality and lie over the negative unit
+modulo twelve times the base modulus. -/
+lemma Parameters.IsLargeScale.exists_isAdmissibleData_focused {P : Parameters} {x n : ℕ} {W : ℝ}
+    (h_scale : P.IsLargeScale n (log x) W)
+    (h_window : ∀ k : ℕ, 1 < k → ((P.q₀ * P.d : ℕ) : ℝ) ^ k ≤ W ^ (n + 7) →
+      ∀ U ∈ Set.Icc W (W ^ (n + 7)), ∃ p : ℕ,
+        p.Prime ∧ p ≡ 1 [MOD (P.q₀ * P.d) ^ k] ∧ log p ∈ Set.Icc U (U + W)) :
+    ∃ (m r s b : ℕ) (T : Finset (P.Φ s)) (g : Fin 2 → ℕ) (α : 𝓞 P.K) (N : ℕ) (β : 𝓞 (P.E s)),
+      P.IsAdmissibleData x W m r s b T g α N β ∧ Odd #T ∧ P.NegOneFiber s 12 T := by
+  apply h_scale.exists_isAdmissibleData_picking (fun s ↦ P.NegOneFiber s 12) h_window
+  intro m r s hm hr hpow hs hw htwo
+  exact P.exists_isSparse_of_ranks_focused (by linarith [h_scale.hundred_le]) h_scale.n_pos
+    hm hr hpow hs hw htwo (by linarith [h_scale.mul_y_le_W]) h_scale.pow_le h_scale.mul_two_pow_le
+
 /-- Let `W` be a large scale for `y = log x` with exponent `n`. Let the windows `[U, U + W]` with
 `W ≤ U ≤ W ^ (n + 7)` hold logarithms of primes `≡ 1` modulo the powers `(q₀ d) ^ k ≤ W ^ (n + 7)`,
 `k > 1`. Then admissible data exist at `x` and `W`: the least powers `m ≥ √x` of `2` and `r ≥ x⁵` of
@@ -993,6 +1051,60 @@ lemma Parameters.IsLargeScale.exists_isAdmissibleData {P : Parameters} {x n : �
   obtain ⟨m, r, s, b, T, g, α, N, β, hd, _⟩ := h_scale.exists_isAdmissibleData_focused h_window
   exact ⟨m, r, s, b, T, g, α, N, β, hd⟩
 
+/-- Any fixed two-three modulus can concentrate all high places, at every sufficiently
+large integer scale, with the original scalar, level, rank and density conditions. -/
+theorem eventually_exists_data_in_fixed_fiber (P : Parameters) (a b : ℕ) {ε : ℝ} (hε : 0 < ε) (hε_lt : ε < 1 / 100) :
+    ∀ᶠ x : ℕ in atTop, ∃ D : Data P,
+      D.natX = x ∧
+      D.natX₁ = ⌊exp ((x : ℝ) ^ (ε / 6))⌋₊ ∧
+      IsLeast {b : ℕ | D.q₁ * D.natX₁ ∣ b ∧ exp ((x : ℝ) ^ ε) < b} D.natB ∧
+      IsLeast {n : ℕ | (∃ j : ℕ, n = 2 ^ j) ∧ √x ≤ n} D.m ∧
+      IsLeast {n : ℕ | (∃ j : ℕ, n = 3 ^ j) ∧ (x : ℝ) ^ 5 ≤ n} D.r ∧
+      (x : ℝ) ^ (ε / 6) - 1 ≤ D.logX₁ ∧
+      D.logB ∈ Set.Icc ((x : ℝ) ^ ε) ((x : ℝ) ^ ε + 1) ∧ Odd #D.bPlaces ∧ P.NegOneFiber D.towerExp (2^a * 3^b) D.bPlaces := by
+  obtain ⟨n, h_scale⟩ := P.exists_eventually_isLargeScale hε hε_lt
+  have h_four : 4 ∣ P.q₀ * P.d := Dvd.dvd.mul_right (.trans (by norm_num) P.dvd_q₀) P.d
+  have hW : Tendsto (fun x : ℕ ↦ (x : ℝ) ^ (ε / 6)) atTop atTop :=
+    (tendsto_rpow_atTop (by positivity)).comp tendsto_natCast_atTop_atTop
+  let K := 2^a * 3^b
+  let S := max a (3^b)
+  have hK : 0 < K := by dsimp [K]; positivity
+  have hK' : NeZero K := ⟨hK.ne'⟩
+  have size : ∀ᶠ x : ℕ in atTop, (2^S)^2 + 1 ≤ x := eventually_ge_atTop _
+  filter_upwards [h_scale, hW.eventually (exists_prime_modEq_one_log_mem _ (n + 7) h_four),
+      hW.eventually_ge_atTop (2*(K:ℝ)+1), size] with x hx h_window hroom hsize
+  have div_tower {m s : ℕ} (hm : exp (log x/2) ≤ m) (hs : 2^s = m^22) : K ∣ towerDeg s := by
+    have hx_pos : 0 < (x : ℝ) := by exact_mod_cast (show 0 < x by omega)
+    have hsqrt : (2^S : ℕ) ≤ m := by
+      have hsquare : ((2^S : ℕ):ℝ)^2 ≤ x := by exact_mod_cast (show (2^S)^2 ≤ x by omega)
+      rw [exp_half, exp_log hx_pos] at hm
+      exact_mod_cast (calc ((2^S : ℕ):ℝ) = √(((2^S : ℕ):ℝ)^2) := (sqrt_sq (by positivity)).symm
+        _ ≤ √(x:ℝ) := sqrt_le_sqrt hsquare
+        _ ≤ m := hm)
+    have order : S ≤ s := (Nat.pow_le_pow_iff_right (by decide : 1 < 2)).1 (by
+      rw [hs]; exact hsqrt.trans (Nat.le_self_pow (by decide) m))
+    have high : 3^b ≤ s := (le_max_right _ _).trans order
+    have hb : b ≤ Nat.log 3 s := Nat.le_log_of_pow_le (by decide) high
+    have h₂ : 2^a ∣ 2^s := pow_dvd_pow 2 ((le_max_left _ _).trans order)
+    have h₃ : 3^b ∣ 3^(Nat.log 3 s+5) := pow_dvd_pow 3 (by omega)
+    change 2^a * 3^b ∣ 3^(Nat.log 3 s+5) * 2^s
+    rw [Nat.mul_comm (2^a)]
+    exact Nat.mul_dvd_mul h₃ h₂
+  have admissible := hx.exists_isAdmissibleData_picking (fun s ↦ P.NegOneFiber s K) h_window
+    (fun m r s hm hr hpow hs hw htwo ↦ P.exists_isSparse_of_ranks_in_fiber
+      (by linarith [hx.hundred_le]) K (div_tower hm hpow) (by nlinarith [sq_nonneg ((x:ℝ)^(ε/6)-1)])
+      hx.n_pos hm hr hpow hs hw htwo (by linarith [hx.mul_y_le_W]) hx.pow_le hx.mul_two_pow_le)
+  obtain ⟨m,r,s,b',T,g,α,N,β,h_adm,hodd,hfocus⟩ := admissible
+  obtain ⟨D,h_fields,h_logX₁,h_logB,hcard,hcenter⟩ :=
+    h_adm.exists_hasFields_preserving (fun s ↦ P.NegOneFiber s K) hx
+  obtain rfl : D.m = m := h_fields.m_eq
+  obtain rfl : D.r = r := h_fields.r_eq
+  obtain rfl : D.natB = b' := h_fields.natB_eq
+  obtain rfl : D.towerExp = s := h_fields.towerExp_eq
+  have h_natB : IsLeast {b : ℕ | D.q₁ * D.natX₁ ∣ b ∧ exp ((x : ℝ) ^ ε) < b} D.natB := by
+    simpa only [h_fields.natX₁_eq, rpow_div_six_pow_six] using h_adm.isLeast_b
+  exact ⟨D, h_fields.natX_eq, h_fields.natX₁_eq, h_natB, h_adm.isLeast_m, h_adm.isLeast_r, h_logX₁,
+    by simpa only [rpow_div_six_pow_six] using h_logB, hcard.symm ▸ hodd, hcenter.2 hfocus⟩
 /-- At every sufficiently large integer scale, the scalar guarantees of `eventually_exists_data` can be
 realized with an odd high-place set reducing to minus one modulo twelve times the base modulus. -/
 theorem eventually_exists_data_focused (P : Parameters) {ε : ℝ} (hε : 0 < ε) (hε_lt : ε < 1 / 100) :
@@ -1004,23 +1116,8 @@ theorem eventually_exists_data_focused (P : Parameters) {ε : ℝ} (hε : 0 < ε
       IsLeast {n : ℕ | (∃ j : ℕ, n = 3 ^ j) ∧ (x : ℝ) ^ 5 ≤ n} D.r ∧
       (x : ℝ) ^ (ε / 6) - 1 ≤ D.logX₁ ∧
       D.logB ∈ Set.Icc ((x : ℝ) ^ ε) ((x : ℝ) ^ ε + 1) ∧ Odd #D.bPlaces ∧ P.NegOneFiber D.towerExp 12 D.bPlaces := by
-  obtain ⟨n, h_scale⟩ := P.exists_eventually_isLargeScale hε hε_lt
-  have h_four : 4 ∣ P.q₀ * P.d := Dvd.dvd.mul_right (.trans (by norm_num) P.dvd_q₀) P.d
-  have hW : Tendsto (fun x : ℕ ↦ (x : ℝ) ^ (ε / 6)) atTop atTop :=
-    (tendsto_rpow_atTop (by positivity)).comp tendsto_natCast_atTop_atTop
-  filter_upwards [h_scale, hW.eventually (exists_prime_modEq_one_log_mem _ (n + 7) h_four)]
-    with x hx h_window
-  -- admissible data exist, and they are the fields of the data `D`
-  obtain ⟨m, r, s, b, T, g, α, N, β, h_adm, hodd, hfocus⟩ := hx.exists_isAdmissibleData_focused h_window
-  obtain ⟨D, h_fields, h_logX₁, h_logB, hcard, hcenter⟩ := h_adm.exists_hasFields_highPlaces hx
-  obtain rfl : D.m = m := h_fields.m_eq
-  obtain rfl : D.r = r := h_fields.r_eq
-  obtain rfl : D.natB = b := h_fields.natB_eq
-  obtain rfl : D.towerExp = s := h_fields.towerExp_eq
-  have h_natB : IsLeast {b : ℕ | D.q₁ * D.natX₁ ∣ b ∧ exp ((x : ℝ) ^ ε) < b} D.natB := by
-    simpa only [h_fields.natX₁_eq, rpow_div_six_pow_six] using h_adm.isLeast_b
-  exact ⟨D, h_fields.natX_eq, h_fields.natX₁_eq, h_natB, h_adm.isLeast_m, h_adm.isLeast_r, h_logX₁,
-    by simpa only [rpow_div_six_pow_six] using h_logB, hcard.symm ▸ hodd, hcenter.2 hfocus⟩
+  simpa only [show 2^2 * 3^1 = 12 by decide] using eventually_exists_data_in_fixed_fiber P 2 1 hε hε_lt
+
 /-- **Existence of the data.** A term `D : Data P` consists of integer scales `x`, `x₁`, `b` with
 `(log b) ^ 100 ≤ x`, `x ^ 10⁶ ≤ x₁` and `x₁ ^ 10⁶ ≤ b`, ranks `m`, `r`, the exponent `s` with
 `2 ^ s = m ^ 22`, a large sparse set of infinite places of `E = K(ζ_{q₁})`, and primes `p₀ ≠ p₁`,
