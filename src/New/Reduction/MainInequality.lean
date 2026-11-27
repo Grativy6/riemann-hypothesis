@@ -28,7 +28,7 @@ Notions from other files:
 * `D.normalizedPoincare g`: the translate `g 𝔭` by `g : D.chosenGL` of a fixed linear map `𝔭` from
   the source `D.ramifiedSourceForms` to the target `D.targetForms`.
 * `D.integralRamified`: the source forms that are integral at every `ι : PrimePadicIso`.
-* `D.errorUnit`: the unit of loss `f a log³ b`.
+* `#D.aPlaces`: the number of infinite places of class `1` modulo `q₀`. It enters the index bound.
 
 ## The inputs
 
@@ -60,11 +60,11 @@ Notions from other files:
 
 ## The errors per dimension
 
-| source   | where             | amount                              |
-|----------|-------------------|-------------------------------------|
-| size     | Theorem A (a)     | `f a log⁴ b`                        |
-| index    | Theorems A (b), B | `320 log (1 + 2 b²) · #aPlaces · a · log x₁`    |
-| covolume | Theorem C         | `3 f a log⁴ b`                      |
+| source   | where             | amount                                       |
+|----------|-------------------|----------------------------------------------|
+| size     | Theorem A (a)     | `f a log⁴ b`                                 |
+| index    | Theorems A (b), B | `320 log (1 + 2 b²) · #aPlaces · a · log x₁` |
+| covolume | Theorem C         | `3 f a log⁴ b`                               |
 
 The index enters twice, and the table shows the doubled amount. The family has `n ≥ dim / 2`
 members, so `m rem` is at most twice the sum, and twice the sum is at most `f a log⁵ b`. The scales

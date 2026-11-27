@@ -89,6 +89,7 @@ noncomputable def indexLoss (p : ℕ) : ℝ :=
     (7 : ℝ) * #D.aPlaces * D.a / p + (1 : ℝ) / D.m else 0) +
   if p = D.N then (D.ϱ + 1 + 1 : ℝ) * D.f * D.a / D.k else 0
 
+/-- The local logarithmic index allowance is nonnegative at every prime. -/
 lemma indexLoss_nonneg (p : ℕ) : 0 ≤ D.indexLoss p := by
   unfold indexLoss
   split_ifs <;> positivity
