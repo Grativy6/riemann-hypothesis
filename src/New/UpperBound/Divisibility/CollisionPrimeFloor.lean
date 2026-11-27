@@ -21,24 +21,6 @@ namespace New.Data
 
 variable {P : Parameters} {D : Data P} {p : ℕ} [hp : Fact p.Prime]
 
-/-- Inert primes act by their actual residue modulo every divisor of the fixed modulus. -/
-lemma placeClass_neg_prime_val (h : chiK P.d p = -1) {n : ℕ} (hn : n ∣ P.q₀) :
-    (P.placeClass (hn.trans (dvd_mul_right _ _)) (D.placeOfInt (-(p : ℤ))) : ZMod n) =
-      -(p : ZMod n) := by
-  have hcop : p.Coprime P.q₀ := hp.out.coprime_iff_not_dvd.2 fun hd ↦ by
-    have hs := P.chiK_eq_one_of_dvd (s := D.towerExp) hp.out (hd.trans (dvd_mul_right _ _))
-    omega
-  have hi : IsCoprime (-(p : ℤ)) (P.q₀ : ℤ) :=
-    (Nat.isCoprime_iff_coprime.2 hcop).neg_left
-  simpa using (P.placeClass_placeOfInt (s := D.towerExp) (m := n)
-    (h_dvd := hn.trans (dvd_mul_right _ _)) hi)
-
-/-- For an inert prime, the divisibility condition on the place order is an ordinary modular power. -/
-lemma dvd_iff_neg_prime_pow (h : chiK P.d p = -1) (e : ℕ) :
-    D.o₀ p ∣ e ↔ (-(p : ZMod P.q₀))^e = 1 := by
-  rw [o₀, orderOf_dvd_iff_pow_eq_one, Units.ext_iff, Units.val_pow_eq_pow_val,
-    Units.val_one, placeClass_neg_prime_val h dvd_rfl]
-
 /-- Every genuine collision gives an odd exponent and the corresponding modular equality. -/
 lemma IsCollision.neg_prime_pow_eq_one {S : Finset D.Φ} {τ : D.Φ} {e : ℕ}
     (h : D.IsCollision p S τ e) : (-(p : ZMod P.q₀))^e = 1 := by

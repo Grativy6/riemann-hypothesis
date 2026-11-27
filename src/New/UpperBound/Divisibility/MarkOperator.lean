@@ -112,6 +112,64 @@ theorem isLargeDegree_of_le_card {P : Parameters} (D : Data P) {N : ℕ} {W O : 
           grw [h_log, T.p.cast_pow, hp, h_pow]
       _ ≤ (D.a : ℝ) := D.le_of_hasLogBound
 
+/-- The bracket in the divisor constant for a cycle with Frobenius norm pᶠ. -/
+noncomputable def frobeniusDivisorFactor {P : Parameters} (D : Data P) (p f : ℕ) : ℝ :=
+  1 / (((p : ℝ)^f)^(2 * D.ceilLogLifts p)) +
+    (D.ceilLogLifts p : ℝ)^2 / (D.k * (p : ℝ)^f)
+
+/-- At a positive Frobenius exponent the two parts of the divisor allowance fit together
+inside 1/(m pᶠ). The natural gap between m and the relevant prime power pays the second part. -/
+theorem frobeniusDivisorFactor_le {P : Parameters} (D : Data P) {p f : ℕ} [hp : Fact p.Prime] (hf : 0 < f) :
+    D.frobeniusDivisorFactor p f ≤ 1 / (D.m * (p : ℝ)^f) := by
+  unfold frobeniusDivisorFactor
+  let r := D.ceilLogLifts p
+  let q := p^f
+  have hq : 1 < q := Nat.one_lt_pow hf.ne' hp.out.one_lt
+  have hpq : p ≤ q := Nat.le_self_pow hf.ne' p
+  have hm1 : 1 < D.m := by have := D.ten_thousand_le_m; omega
+  have hr : 0 < r := (Nat.lt_clog_iff_pow_lt hp.out.one_lt).2 (by simpa using hm1)
+  have hmpr : D.m ≤ p^r := Nat.le_pow_clog hp.out.one_lt D.m
+  have strict : D.m < q ^ (2*r-1) := by
+    by_cases h : r = 1
+    · have hmp : D.m ≤ p := by simpa [h] using hmpr
+      have hne : D.m ≠ p := by
+        intro eq
+        have hd := eq ▸ D.m_even.two_dvd
+        have hp2 : p = 2 := ((Nat.prime_dvd_prime_iff_eq Nat.prime_two hp.out).1 hd).symm
+        have := D.ten_thousand_le_m
+        omega
+      simpa [h] using (lt_of_le_of_ne hmp hne).trans_le hpq
+    · exact (hmpr.trans (Nat.pow_le_pow_left hpq r)).trans_lt
+        ((Nat.pow_lt_pow_iff_right hq).2 (by omega))
+  have hden : (D.m+1)*q ≤ q^(2*r) := by
+    calc (D.m+1)*q ≤ q^(2*r-1)*q := Nat.mul_le_mul_right _ strict
+      _ = q^(2*r) := by rw [← pow_succ]; congr 1; omega
+  have hm : (0 : ℝ) < D.m := HasLogBound.pos D
+  have hk : (0 : ℝ) < D.k := HasLogBound.pos D
+  have hqr : (0 : ℝ) < q := by exact_mod_cast Nat.zero_lt_of_lt hq
+  have hscale : (2 * (r : ℝ)^2 * (D.m : ℝ)^2) ≤ D.k := D.le_of_hasLogBound (by
+    change 2 + 2 * log D.logX₁ + 2 * (D.logX / 2 + 2) < 5 * D.logX + (-2)
+    linarith [D.log_logX₁_le_log_logB, D.mul_log_logB_le_logX,
+      D.constantBound_le, (le_constantBound (P := P)).1])
+  have hrank : (r : ℝ)^2 * D.m * ((D.m : ℝ)+1) ≤ D.k := calc
+    _ ≤ (r : ℝ)^2 * D.m * (2*D.m) := by
+      gcongr
+      have h1r : (1 : ℝ) < D.m := by exact_mod_cast hm1
+      linarith
+    _ = _ := by ring
+    _ ≤ _ := hscale
+  have hfirst : (1 : ℝ) / (q : ℝ)^(2*r) ≤ 1 / (((D.m : ℝ)+1)*q) := by
+    apply one_div_le_one_div_of_le (by positivity)
+    exact_mod_cast hden
+  have hsecond : ((r : ℝ)^2)/(D.k*q) ≤ 1 / ((D.m : ℝ)*((D.m : ℝ)+1)*q) := by
+    rw [div_le_div_iff₀ (by positivity) (by positivity), one_mul]
+    nlinarith only [mul_le_mul_of_nonneg_right hrank hqr.le]
+  have result := add_le_add hfirst hsecond
+  have hid : 1 / (((D.m : ℝ)+1)*q) + 1 / ((D.m : ℝ)*((D.m : ℝ)+1)*q) = 1 / ((D.m : ℝ)*q) := by
+    field_simp
+  rw [hid] at result
+  simpa only [q, Nat.cast_pow, r] using result
+
 /-- For a Frobenius cycle with `N = ℓ + ℓ` letters, prime `p = T.p` and `P = p ^ T.frobExp`, where
 `0 < T.frobExp ≤ r` and `r = D.ceilLogLifts p` is the least natural number with `D.m ≤ p ^ r`, the
 divisor constant `c = T.divisorConstant D.k a r = N a (P ^ (-2 r) + r ^ 2 / (k P))` for `k = D.k`
@@ -149,29 +207,26 @@ theorem three_mul_divisorConstant_le {P : Parameters} (D : Data P) {N ℓ : ℕ}
       push_cast
       ring
 
-/-- Let `p` be inert in the imaginary quadratic field of discriminant datum `P.d`
-(`chiK P.d p = -1`), let `o₀` be odd, let `τ` be an a-place and let `N` be the order of the `o₀`-th
-power of the place named by `-p`. Then some injective family `t` of places, indexed modulo `N`, goes
-from each member to the next by multiplication with the place named by `-p ^ o₀` and consists of
-exactly the a-places that induce the same prime as `τ` or its conjugate prime. -/
+/-- For an inert prime `p` and an a-place `τ`, the a-places inducing the same prime as `τ`
+or its conjugate form one orbit. Its step is the `o₀`-th power of the place named by `-p`,
+where `o₀` is its order modulo `q₀`. Index the orbit by the integers modulo the order of that
+step. -/
 theorem exists_orbit_of_mem_aPlaces {P : Parameters} {p : ℕ} (D : Data P) [Fact p.Prime]
-    [PadicPlace p]
-    (h_inert : chiK P.d p = -1) (ho₀_odd : Odd (D.o₀ p)) {τ : D.Φ} (hτ : τ ∈ D.aPlaces)
-    [NeZero (orderOf (D.placeOfInt (-p) ^ D.o₀ p))] :
+    [PadicPlace p] (h_inert : chiK P.d p = -1) {τ : D.Φ} (hτ : τ ∈ D.aPlaces) :
     ∃ t : ZMod (orderOf (D.placeOfInt (-p) ^ D.o₀ p)) → D.Φ,
       t.Injective ∧
       (∀ i : ZMod (orderOf (D.placeOfInt (-p) ^ D.o₀ p)),
-        t (i + 1) = D.placeOfInt (-p ^ D.o₀ p) * t i) ∧
+        t (i + 1) = D.placeOfInt (-p) ^ D.o₀ p * t i) ∧
       ∀ σ : D.Φ,
         σ ∈ Set.range t ↔
           σ ∈ D.aPlaces ∧
           (inducedPlace σ = inducedPlace τ ∨ inducedPlace σ = star (inducedPlace τ)) := by
   set o : ℕ := D.o₀ p
   let c : D.Φ := D.placeOfInt (-p) ^ o
+  have : NeZero (orderOf c) := .of_pos (orderOf_pos _)
   refine ⟨fun i ↦ c ^ i.val * τ, fun _ _ ↦ ?_, fun i ↦ ?_, fun σ ↦ ?_⟩
   · simp [c, pow_inj_mod, ← natCast_eq_natCast_iff']
-  · simp [← ho₀_odd.neg_pow, ← placeOfInt_pow, c, _root_.pow_succ', val_add, val_one_eq_one_mod,
-      mul_assoc]
+  · simp [c, _root_.pow_succ', val_add, val_one_eq_one_mod, mul_assoc]
   · -- The places inducing `inducedPlace τ` or its conjugate are the `placeOfInt (-p) ^ i * τ`, and
     -- such a place is an a-place exactly if `o ∣ i`.
     have h_aPlace_iff (i : ℕ) : D.placeOfInt (-p) ^ i * τ ∈ D.aPlaces ↔ o ∣ i := by
@@ -344,20 +399,14 @@ theorem IsMarked.exists_frobeniusCycle {P : Parameters} {D : Data P} {p : ℕ} [
 
 end Ring
 
-/-- Let `Λ` be a marked set of finite places above `p`, let `l ∈ Λ`, and let `j₀` be a natural
-number. The scaled Hecke operator at `l` acts on `D.SourceForm`, the forms of weight `D.columnCount`
-and level `D.levelX 0`; it is `p ^ A` times the Hecke operator of index `r` at `l`, where
-`A = D.heckeScalingExponent l` is `D.a` times the number of a-places inducing `l` and
-`r = D.ceilLogLifts p` is least with `m ≤ p ^ r`. It maps the module of integral source forms (gauge
-at most `1`) to itself, and it is onto modulo `p ^ j₀` up to an index dividing `p ^ i` for some
-natural `i ≤ (12 A / (m p) + j₀ / (m ^ 2 f)) * dim`, the divisions being those of real numbers. Here
-`m = D.m` and `f = D.f` are the numerical parameters of `D`, and `dim` is the complex dimension of
-`D.SourceForm`. -/
-theorem IsMarked.isOntoUpToColength_scaledHeckeOperator {P : Parameters} {p : ℕ} {D : Data P}
+/-- Read the scaled Hecke bound at the actual cycle norm pᵒ. Its divisor factor is exactly
+the original Frobenius-cycle bracket at this norm. -/
+theorem IsMarked.isOntoUpToColength_scaledHeckeOperator_return {P : Parameters} {p : ℕ} {D : Data P}
     [Fact p.Prime] [PadicPlace p] {Λ : Finset (FinPlace D.E)} (hΛ : D.IsMarked Λ) (j₀ : ℕ)
     {l : FinPlace D.E} (hl : l ∈ Λ) :
     IsOntoUpToColength (p : embValRing) D.integralSourceForms j₀ (hΛ.scaledHeckeOperator ⟨l, hl⟩)
-      ((12 * D.heckeScalingExponent l / (D.m * p) + 1 / (D.m ^ 2 * D.f) * j₀) *
+      ((6 * D.heckeScalingExponent l * D.frobeniusDivisorFactor p (D.o₀ p) +
+        1 / (D.m ^ 2 * D.f) * j₀) *
         finrank ℂ D.SourceForm) := by
   classical
   -- The a-places that induce `l` or `star l` form one orbit `t` under the place named by `-p ^ o₀`.
@@ -375,7 +424,8 @@ theorem IsMarked.isOntoUpToColength_scaledHeckeOperator {P : Parameters} {p : �
       (∀ i : ZMod N, t (i + 1) = D.placeOfInt (-p ^ D.o₀ p) * t i) ∧
       ∀ σ : D.Φ, σ ∈ Set.range t ↔
         σ ∈ D.aPlaces ∧ (inducedPlace σ = l ∨ inducedPlace σ = star l) := by
-    simpa only [hτl] using D.exists_orbit_of_mem_aPlaces hΛ.isExceptional.chiK_eq_neg_one h_odd hτ
+    simpa only [Parameters.placeOfInt_pow, h_odd.neg_pow, hτl] using
+      D.exists_orbit_of_mem_aPlaces hΛ.isExceptional.chiK_eq_neg_one hτ
   have ht_ind (i : ZMod N) : inducedPlace (t i) = l ∨ inducedPlace (t i) = star l :=
     ((ht_range _).1 ⟨i, rfl⟩).2
   obtain ⟨T, hT_p, hT_o₀, hT_even, hT_ι⟩ :
@@ -410,10 +460,14 @@ theorem IsMarked.isOntoUpToColength_scaledHeckeOperator {P : Parameters} {p : �
     rw [← hT_p] at h13 hp_lt
     simpa only [hT_p] using
       D.isLargeDegree_of_le_card T h13 hp_lt hfrobExp_pos hfrobExp_le orderOf_le_card_univ hm
-  have h_cost : 3 * T.divisorConstant D.k D.a (D.ceilLogLifts p) ≤
-      12 * D.heckeScalingExponent l / (D.m * p) := by
-    simpa only [hT_p, h_exponent] using
-      D.three_mul_divisorConstant_le T hfrobExp_pos hfrobExp_le T.card_isEven_add_self
+  have h_cost : 3 * T.divisorConstant D.k D.a (D.ceilLogLifts p) =
+      6 * D.heckeScalingExponent l * D.frobeniusDivisorFactor p (D.o₀ p) := by
+    have hN2 : (N : ℝ) = 2 * (#{i : ZMod N | T.isEven i} : ℝ) := by
+      exact_mod_cast (by simpa only [two_mul] using T.card_isEven_add_self.symm :
+        N = 2 * #{i : ZMod N | T.isEven i})
+    have hP : T.P = p^(D.o₀ p) := by simp only [FrobeniusCycle.P, hT_p, hT_o₀]
+    rw [FrobeniusCycle.divisorConstant, frobeniusDivisorFactor, h_exponent, Nat.cast_mul, hP, Nat.cast_pow, hN2]
+    ring
   -- The constant of the Frobenius cycle is at most the stated one.
   obtain ⟨h_stable, i, hi, h_index⟩ :
       IsOntoUpToColength (p : embValRing) D.integralSourceForms j₀ (hΛ.scaledHeckeOperator ⟨l, hl⟩)
@@ -422,6 +476,42 @@ theorem IsMarked.isOntoUpToColength_scaledHeckeOperator {P : Parameters} {p : �
     simpa only [hT_p] using Columns.isOntoUpToColength_scaledHeckeOperator_of_frobeniusCycle hΛ hl
       l.valuationSubringAtPrime_eq_valuationSubring T h_nonunit hT_p (.ofInjective t ht_inj)
       ht_range hι h_exponent h_large j₀
-  exact ⟨h_stable, i, hi.trans (by grw [h_cost]), h_index⟩
+  exact ⟨h_stable, i, by simpa only [h_cost] using hi, h_index⟩
+
+/-- The previous p-denominator also pays the Frobenius divisor factor at every marked prime. -/
+theorem IsMarked.returnScaling_le {P : Parameters} {p : ℕ} {D : Data P}
+    [hp : Fact p.Prime] [PadicPlace p] {Λ : Finset (FinPlace D.E)} (hΛ : D.IsMarked Λ)
+    (l : FinPlace D.E) :
+    6 * D.heckeScalingExponent l * D.frobeniusDivisorFactor p (D.o₀ p) ≤
+      12 * D.heckeScalingExponent l / (D.m * p) := by
+  have hp0 : (0 : ℝ) < p := by exact_mod_cast hp.out.pos
+  have hm : (0 : ℝ) < D.m := HasLogBound.pos D
+  have hpq : (p : ℝ) ≤ (p : ℝ)^D.o₀ p := by exact_mod_cast Nat.le_self_pow hΛ.isExceptional.odd_o₀.pos.ne' p
+  have hF : D.frobeniusDivisorFactor p (D.o₀ p) ≤ 1 / ((D.m : ℝ)*p) := by
+    refine (D.frobeniusDivisorFactor_le hΛ.isExceptional.odd_o₀.pos).trans ?_
+    gcongr
+  calc 6 * D.heckeScalingExponent l * D.frobeniusDivisorFactor p (D.o₀ p) ≤
+        6 * D.heckeScalingExponent l * (1 / ((D.m : ℝ)*p)) := by gcongr
+    _ ≤ _ := by rw [mul_one_div]; gcongr; norm_num
+
+/-- Let `Λ` be a marked set of finite places above `p`, let `l ∈ Λ`, and let `j₀` be a natural
+number. The scaled Hecke operator at `l` acts on `D.SourceForm`, the forms of weight `D.columnCount`
+and level `D.levelX 0`; it is `p ^ A` times the Hecke operator of index `r` at `l`, where
+`A = D.heckeScalingExponent l` is `D.a` times the number of a-places inducing `l` and
+`r = D.ceilLogLifts p` is least with `m ≤ p ^ r`. It maps the module of integral source forms (gauge
+at most `1`) to itself, and it is onto modulo `p ^ j₀` up to an index dividing `p ^ i` for some
+natural `i ≤ (12 A / (m p) + j₀ / (m ^ 2 f)) * dim`, the divisions being those of real numbers. Here
+`m = D.m` and `f = D.f` are the numerical parameters of `D`, and `dim` is the complex dimension of
+`D.SourceForm`. -/
+theorem IsMarked.isOntoUpToColength_scaledHeckeOperator {P : Parameters} {p : ℕ} {D : Data P}
+    [Fact p.Prime] [PadicPlace p] {Λ : Finset (FinPlace D.E)} (hΛ : D.IsMarked Λ) (j₀ : ℕ)
+    {l : FinPlace D.E} (hl : l ∈ Λ) :
+    IsOntoUpToColength (p : embValRing) D.integralSourceForms j₀ (hΛ.scaledHeckeOperator ⟨l, hl⟩)
+      ((12 * D.heckeScalingExponent l / (D.m * p) + 1 / (D.m ^ 2 * D.f) * j₀) *
+        finrank ℂ D.SourceForm) := by
+  obtain ⟨stable, i, hi, index⟩ := hΛ.isOntoUpToColength_scaledHeckeOperator_return j₀ hl
+  refine ⟨stable, i, hi.trans ?_, index⟩
+  gcongr
+  exact hΛ.returnScaling_le l
 
 end New.Data

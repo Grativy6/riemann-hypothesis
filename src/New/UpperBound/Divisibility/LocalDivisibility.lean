@@ -9,7 +9,7 @@ public import New.UpperBound.Kernels.ThetaLiftGauge
 import New.UpperBound.Divisibility.ChainDatumExpansion
 import New.UpperBound.Divisibility.ChainValuation
 import New.UpperBound.Divisibility.ColengthAtLevel
-import New.UpperBound.Divisibility.MarkOperator
+public import New.UpperBound.Divisibility.ArithmeticMark
 import New.UpperBound.Divisibility.ValuationAtLevel
 import New.UpperBound.Divisibility.ValuationAtNonSplitPrimes
 
@@ -394,19 +394,74 @@ noncomputable def markedProductIndexCost (j : ℕ) : ℝ :=
   (D.m : ℝ) * ∑ l ∈ Λ, ((12 : ℝ) * D.heckeScalingExponent (p := p) l / (D.m * p) +
     (1 : ℝ) / (D.m ^ 2 * D.f) * j)
 
+variable (D p Λ) in
+/-- The additive local index price before bounding the cycle's divisor factor. -/
+noncomputable def returnProductIndexCost (j : ℕ) : ℝ :=
+  (D.m : ℝ) * ∑ l ∈ Λ, ((6 : ℝ) * D.heckeScalingExponent (p := p) l *
+    D.frobeniusDivisorFactor p (D.o₀ p) + (1 : ℝ) / (D.m^2 * D.f) * j)
+
+variable (D p) in
+/-- For a full mark the entire per-dimension allowance is determined by the return norm,
+the arithmetic pair count, the scale data, and the scalar exponent. -/
+noncomputable def fullReturnIndexCost (j : ℕ) : ℝ :=
+  (3 : ℝ) * D.m * #D.aPlaces * D.a * D.frobeniusDivisorFactor p (D.o₀ p) +
+    (D.returnPairCount p : ℝ) * j / (D.m * D.f)
+
+lemma IsMarked.returnProductIndexCost_le (h : D.IsMarked Λ) (j : ℕ) :
+    D.returnProductIndexCost p Λ j ≤ D.markedProductIndexCost p Λ j := by
+  unfold returnProductIndexCost markedProductIndexCost
+  apply mul_le_mul_of_nonneg_left _ (Nat.cast_nonneg _)
+  exact sum_le_sum fun l _ ↦ add_le_add (h.returnScaling_le l) le_rfl
+
+/-- Half the distinguished places induce the marked orientation and each pair is paid for
+once. This turns the full product allowance into a formula without a sum over primes of E. -/
+lemma IsFullMark.returnProductIndexCost_eq (h : D.IsFullMark Λ) (j : ℕ) :
+    D.returnProductIndexCost p Λ j = D.fullReturnIndexCost p j := by
+  classical
+  have halves := h.toIsMarked.card_uncovered_add_twice
+  rw [h.toIsMarked.isFullMark_iff_no_uncovered.1 h, card_empty, zero_add] at halves
+  have hs : 2 * (∑ l ∈ Λ, (D.heckeScalingExponent l : ℝ)) = D.a * (#D.aPlaces : ℝ) := by
+    rw [← Nat.cast_sum, sum_heckeScalingExponent, Nat.cast_mul, ← halves, Nat.cast_mul]
+    push_cast
+    ring
+  have hm : (D.m : ℝ) ≠ 0 := (HasLogBound.pos D).ne'
+  have hf : (D.f : ℝ) ≠ 0 := (HasLogBound.pos D).ne'
+  unfold returnProductIndexCost fullReturnIndexCost
+  rw [sum_add_distrib, ← sum_mul, ← mul_sum, sum_const, nsmul_eq_mul, h.card_eq_returnPairCount]
+  have hh : (6 : ℝ) * (∑ l ∈ Λ, (D.heckeScalingExponent l : ℝ)) = 3 * D.a * #D.aPlaces := by linarith
+  rw [hh]
+  field_simp
+
+omit [PadicPlace p] in
+/-- In a full mark the Hecke part of the per-dimension allowance is at most
+three times the row length times the distinguished-place count divided by the return norm. -/
+lemma IsExceptional.fullReturnIndexCost_le (he : D.IsExceptional p) (j : ℕ) :
+    D.fullReturnIndexCost p j ≤ 3 * (#D.aPlaces : ℝ) * D.a / (p : ℝ)^(D.o₀ p) +
+      D.returnPairCount p * (j : ℝ) / ((D.m : ℝ)*D.f) := by
+  have hm : 0 < (D.m : ℝ) := HasLogBound.pos D
+  have hp0 : 0 < (p : ℝ) := by exact_mod_cast hp.out.pos
+  unfold fullReturnIndexCost
+  refine add_le_add ?_ le_rfl
+  calc (3 : ℝ) * D.m * #D.aPlaces * D.a * D.frobeniusDivisorFactor p (D.o₀ p) ≤
+        3 * D.m * #D.aPlaces * D.a * (1 / (D.m * (p : ℝ)^(D.o₀ p))) := by
+          gcongr
+          exact D.frobeniusDivisorFactor_le he.odd_o₀.pos
+    _ = _ := by field_simp
+
 /-- At any scalar exponent j, the additive determinant allowance can be read before it is
 bounded by loss. The same product of marked operators acts on every twist. -/
-theorem IsMarked.isOntoUpToColength_prod_scaledHeckeOperator_pow_at (hΛ : D.IsMarked Λ) (j : ℕ) :
+theorem IsMarked.isOntoUpToColength_prod_scaledHeckeOperator_pow_return (hΛ : D.IsMarked Λ) (j : ℕ) :
     IsOntoUpToColength ↑p D.integralSourceForms j
       ((Λ.attach.toList.map hΛ.scaledHeckeOperator).prod ^ D.m)
-        (D.markedProductIndexCost p Λ j * finrank ℂ D.SourceForm) := by
+        (D.returnProductIndexCost p Λ j * finrank ℂ D.SourceForm) := by
   -- Exponents add under products, and `Y ^ m` is the product over `m` copies of `Λ`.
   let L : List Λ := (List.replicate D.m Λ.attach.toList).flatten
   let cost (l : FinPlace D.E) : ℝ :=
-    12 * D.heckeScalingExponent l / (D.m * p) + 1 / (D.m ^ 2 * D.f) * j
+    6 * D.heckeScalingExponent l * D.frobeniusDivisorFactor p (D.o₀ p) +
+      1 / (D.m ^ 2 * D.f) * j
   have h_onto : IsOntoUpToColength ↑p D.integralSourceForms j
       (L.map hΛ.scaledHeckeOperator).prod (L.map fun l : Λ ↦ cost l * finrank ℂ D.SourceForm).sum :=
-    IsOntoUpToColength.prod L fun l _ ↦ hΛ.isOntoUpToColength_scaledHeckeOperator
+    IsOntoUpToColength.prod L fun l _ ↦ hΛ.isOntoUpToColength_scaledHeckeOperator_return
       j l.property
   have h_prod :
       (L.map hΛ.scaledHeckeOperator).prod = (Λ.attach.toList.map hΛ.scaledHeckeOperator).prod ^
@@ -418,6 +473,15 @@ theorem IsMarked.isOntoUpToColength_prod_scaledHeckeOperator_pow_at (hΛ : D.IsM
     simp [L, List.sum_flatten]
   rw [h_prod, h_cost] at h_onto
   exact h_onto
+
+/-- The earlier p-based allowance also suffices at every scalar exponent. -/
+theorem IsMarked.isOntoUpToColength_prod_scaledHeckeOperator_pow_at (hΛ : D.IsMarked Λ) (j : ℕ) :
+    IsOntoUpToColength ↑p D.integralSourceForms j
+      ((Λ.attach.toList.map hΛ.scaledHeckeOperator).prod ^ D.m)
+        (D.markedProductIndexCost p Λ j * finrank ℂ D.SourceForm) := by
+  obtain ⟨stable, c, hc, index⟩ := hΛ.isOntoUpToColength_prod_scaledHeckeOperator_pow_return j
+  exact ⟨stable, c, hc.trans (mul_le_mul_of_nonneg_right (hΛ.returnProductIndexCost_le j)
+    (Nat.cast_nonneg _)), index⟩
 
 /-- A smaller scalar exponent has at most the established local colength allowance. -/
 theorem IsMarked.isOntoUpToColength_prod_scaledHeckeOperator_pow_of_le (hΛ : D.IsMarked Λ)
@@ -442,6 +506,24 @@ theorem IsMarked.isOntoUpToColength_prod_scaledHeckeOperator_pow (hΛ : D.IsMark
       ((Λ.attach.toList.map hΛ.scaledHeckeOperator).prod ^ D.m)
         (D.loss p * finrank ℂ D.SourceForm) := by
   exact hΛ.isOntoUpToColength_prod_scaledHeckeOperator_pow_of_le le_rfl
+
+/-- The full common witness retains its arithmetic index allowance for every scalar exponent. -/
+theorem IsFullMark.isOntoUpToColength_fullReturn (h : D.IsFullMark Λ) (j : ℕ) :
+    IsOntoUpToColength ↑p D.integralSourceForms j
+      ((Λ.attach.toList.map h.scaledHeckeOperator).prod ^ D.m)
+      (D.fullReturnIndexCost p j * finrank ℂ D.SourceForm) := by
+  simpa only [h.returnProductIndexCost_eq] using
+    h.toIsMarked.isOntoUpToColength_prod_scaledHeckeOperator_pow_return j
+
+/-- At the finite clearance the exact full-mark formula fits the local loss allowance. -/
+lemma IsFullMark.fullReturnIndexCost_le_loss (h : D.IsFullMark Λ) :
+    D.fullReturnIndexCost p (D.collisionClearance p) ≤ D.loss p := by
+  rw [← h.returnProductIndexCost_eq]
+  refine (h.toIsMarked.returnProductIndexCost_le _).trans ?_
+  unfold markedProductIndexCost
+  refine le_trans ?_ h.toIsMarked.mul_sum_heckeScalingExponent_le_loss
+  gcongr
+  exact_mod_cast collisionClearance_le_collisionExponent (D := D) (p := p)
 
 omit [PadicPlace p] in
 /-- A prime `p` lies in `D.smallNonsplitPrimes` if and only if `p < x₁` and `χ_K(p) ≠ 1`. -/
@@ -559,18 +641,20 @@ theorem exists_colengthDvd_gaugeLe_compositeLift {P : Parameters} {D : Data P} {
   · -- At an exceptional prime the common module is `Y ^ m M + p ^ j M` for a full mark.
     -- Use the least exponent j covering the finite collision excess for both estimates.
     rw [allowedLoss, ite_eq_left h_mem]
-    obtain ⟨Λ, hΛ⟩ : ∃ Λ : Finset (FinPlace D.E), D.IsFullMark Λ :=
-      D.exists_isFullMark (mem_smallNonsplitPrimes_iff_isSmallNonsplit.1 h_mem).1 h_exc
+    let Λ := D.arithmeticMark p
+    have hΛ : D.IsFullMark Λ :=
+      h_exc.isFullMark_arithmeticMark (mem_smallNonsplitPrimes_iff_isSmallNonsplit.1 h_mem)
     -- Trade collision loss in valuation for the colength of this submodule.
     obtain ⟨-, l, hl, h_colength⟩ :
         IsOntoUpToColength ↑p D.integralSourceForms (D.collisionClearance p)
         ((Λ.attach.toList.map hΛ.scaledHeckeOperator).prod ^ D.m)
-          (D.loss p * finrank ℂ D.SourceForm) :=
-      hΛ.isOntoUpToColength_prod_scaledHeckeOperator_pow_of_le collisionClearance_le_collisionExponent
+          (D.fullReturnIndexCost p (D.collisionClearance p) * finrank ℂ D.SourceForm) :=
+      hΛ.isOntoUpToColength_fullReturn _
     have h_colength_budget :
-        D.loss p * finrank ℂ D.SourceForm ≤ 2 * D.loss p * finrank ℂ D.SourceForm := by
+        D.fullReturnIndexCost p (D.collisionClearance p) * finrank ℂ D.SourceForm ≤
+          2 * D.loss p * finrank ℂ D.SourceForm := by
       gcongr
-      linarith
+      linarith [hΛ.fullReturnIndexCost_le_loss]
     exact ⟨l, _, hl.trans h_colength_budget, h_colength, fun ϑ Ψ hΨ hQ φ hφ _ ↦
       hΨ.gaugeLe_compositeLift_of_clearance hQ hΛ le_rfl hφ⟩
   · -- `p = N`: the module consists of the source forms in `upIntegralForms`, and `x₁ ≤ N` makes the

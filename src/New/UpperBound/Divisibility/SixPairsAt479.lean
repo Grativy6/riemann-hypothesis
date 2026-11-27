@@ -135,47 +135,7 @@ theorem six_mul_pair_size_479 (D : Data params) :
 end New.Data.CollisionPrimeExample
 
 
-namespace New.Data
 
-open Finset
-variable {P : Parameters} {D : Data P} {p : ℕ} [Fact p.Prime] [PadicPlace p]
-  {Λ : Finset (FinPlace D.E)}
-
-open scoped Classical in
-/-- The chosen primes cover disjoint orbits, each with the same number of distinguished places. -/
-theorem IsMarked.card_uncovered_add_card_mul_pair (h : D.IsMarked Λ) :
-    #{σ ∈ D.aPlaces | inducedPlace σ ∉ Λ ∧ star (inducedPlace σ) ∉ Λ} +
-      #Λ * (orderOf (D.placeOfInt (-(p : ℤ))) / D.o₀ p) = #D.aPlaces := by
-  classical
-  let U := D.aPlaces.filter fun σ ↦ inducedPlace σ ∉ Λ ∧ star (inducedPlace σ) ∉ Λ
-  let fiber (l : FinPlace D.E) :=
-    D.aPlaces.filter fun σ ↦ inducedPlace σ = l ∨ star (inducedPlace σ) = l
-  have hmem (σ : D.Φ) (l : FinPlace D.E) :
-      σ ∈ fiber l ↔ σ ∈ D.aPlaces ∧ (inducedPlace σ = l ∨ star (inducedPlace σ) = l) :=
-    mem_filter
-  have disj : (Λ : Set (FinPlace D.E)).PairwiseDisjoint fiber := by
-    intro l hl w hw hn
-    rw [Function.onFun, disjoint_left]
-    intro σ hs ht
-    obtain ⟨_, hl' | hl'⟩ := (hmem σ l).1 hs <;>
-      obtain ⟨_, hw' | hw'⟩ := (hmem σ w).1 ht <;> grind [h.star_notMem, star_star]
-  have hcard (l : FinPlace D.E) (hl : l ∈ Λ) :
-      #(fiber l) = orderOf (D.placeOfInt (-(p : ℤ))) / D.o₀ p := by
-    obtain ⟨τ, hτ, rfl⟩ := h.induced_by_aPlace l hl
-    simpa only [fiber, star_eq_iff_star_eq, eq_comm (a := star (inducedPlace τ))] using
-      card_aPlaces_inducing_pair h.isExceptional.chiK_eq_neg_one τ hτ
-  have hcover : U = D.aPlaces \ Λ.biUnion fiber := by
-    ext σ
-    simp only [U, mem_filter, mem_sdiff, mem_biUnion, hmem]
-    grind
-  have sub : Λ.biUnion fiber ⊆ D.aPlaces := biUnion_subset.2 fun l _ ↦ filter_subset _ _
-  have hc : #(Λ.biUnion fiber) = #Λ * (orderOf (D.placeOfInt (-(p : ℤ))) / D.o₀ p) := by
-    rw [card_biUnion disj, sum_congr rfl hcard, sum_const, nsmul_eq_mul]
-    simp
-  change #U + _ = _
-  rw [hcover, ← hc, card_sdiff_of_subset sub, Nat.sub_add_cancel (card_le_card sub)]
-
-end New.Data
 
 
 namespace New.Data.CollisionPrimeExample
@@ -184,33 +144,23 @@ open Finset
 
 local instance fact479ForCounts : Fact (Nat.Prime 479) := ⟨by norm_num1⟩
 
+/-- The general arithmetic pair count agrees with the direct prime-power calculation at 479. -/
+theorem returnPairCount_479 (D : Data params) : D.returnPairCount 479 = 6 := by
+  have he := exceptional_479 D
+  have hcount := returnPairCount_mul_period he.chiK_eq_neg_one he.odd_o₀
+  have hd : D.o₀ 479 ∣ orderOf (D.placeOfInt (-(479 : ℤ))) := orderOf_map_dvd _ _
+  have hpos := Nat.div_pos (Nat.le_of_dvd (orderOf_pos _) hd) he.odd_o₀.pos
+  exact Nat.eq_of_mul_eq_mul_right hpos (hcount.trans (six_mul_pair_size_479 D).symm)
+
 /-- Every full mark above 479 contains exactly six chosen primes. -/
 theorem fullMark_card_479 (D : Data params) (ι : PadicPlace 479)
     {Λ : Finset (FinPlace D.E)} (h : D.IsFullMark (p := 479) Λ) : #Λ = 6 := by
-  classical
-  have hc := h.toIsMarked.card_uncovered_add_card_mul_pair
-  rw [h.toIsMarked.isFullMark_iff_no_uncovered.1 h, card_empty, zero_add] at hc
-  have ha : 0 < #D.aPlaces := card_pos.2 ⟨1, by simp [aPlaces]⟩
-  have hsize := six_mul_pair_size_479 D
-  have hpos : 0 < orderOf (D.placeOfInt (-(479 : ℤ))) / D.o₀ 479 := by omega
-  exact Nat.eq_of_mul_eq_mul_right hpos (hc.trans hsize.symm)
+  exact h.card_eq_returnPairCount.trans (returnPairCount_479 D)
 
 /-- A mark with k members leaves exactly (6-k)/6 of the unmarked collision sum. -/
 theorem collisionSum_share_479 (D : Data params) (ι : PadicPlace 479)
     {Λ : Finset (FinPlace D.E)} (h : D.IsMarked (p := 479) Λ) :
     6 * D.collisionSum 479 (placesInducing Λ) = (6 - (#Λ : ℝ)) * D.collisionSum 479 ∅ := by
-  classical
-  let n := orderOf (D.placeOfInt (-(479 : ℤ))) / D.o₀ 479
-  let u := D.aPlaces.filter fun σ ↦ inducedPlace σ ∉ Λ ∧ star (inducedPlace σ) ∉ Λ
-  have hc : (#u : ℝ) + (#Λ : ℝ) * (n : ℝ) = #D.aPlaces := by
-    exact_mod_cast h.card_uncovered_add_card_mul_pair
-  have ha : 6 * (n : ℝ) = #D.aPlaces := by exact_mod_cast six_mul_pair_size_479 D
-  have hu : 6 * (#u : ℝ) = (6 - (#Λ : ℝ)) * #D.aPlaces := by
-    rw [← ha] at hc ⊢
-    linear_combination 6 * hc
-  rw [h.collisionSum_eq_uncovered, D.collisionSum_empty_value,
-    ite_eq_left ⟨h.isExceptional.chiK_eq_neg_one, h.isExceptional.odd_o₀⟩]
-  change 6 * ((#u : ℝ) * _) = (6 - (#Λ : ℝ)) * ((#D.aPlaces : ℝ) * _)
-  rw [← mul_assoc, ← mul_assoc, hu]
+  simpa only [returnPairCount_479 D, Nat.cast_ofNat] using h.collisionSum_return_share
 
 end New.Data.CollisionPrimeExample

@@ -243,3 +243,22 @@ theorem markedProductIndexCost_sub (J j : ℕ) :
   field_simp
 
 end New.Data
+
+namespace New.Data
+
+variable {P : Parameters} {D : Data P} {p : ℕ} [Fact p.Prime] [PadicPlace p]
+  {Λ : Finset (FinPlace D.E)}
+
+open Finset Real
+
+/-- The same pair count controls the positive-part deficit actually used at the lifts. -/
+theorem IsMarked.collisionDeficit_return_share (h : D.IsMarked Λ) :
+    (D.returnPairCount p : ℝ) * D.collisionDeficit p (placesInducing Λ) =
+      ((D.returnPairCount p : ℝ) - #Λ) * D.collisionDeficit p ∅ := by
+  classical
+  let R := 1 - ((((p : ℝ)^D.o₀ p)^2)⁻¹)^(D.collisionTermCount p)
+  let W : ℝ := D.collisionTermCount p * (D.offWeight : ℝ)
+  rw [h.collisionDeficit_formula, h.isExceptional.collisionDeficit_empty h.isSmallNonsplit]
+  linear_combination R * h.collisionSum_return_share - W * h.uncovered_share
+
+end New.Data

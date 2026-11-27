@@ -92,21 +92,7 @@ still accounts for exactly one sixth of the finite charge. -/
 theorem collisionDeficit_share_479 (D : Data params) (ι : PadicPlace 479)
     {Λ : Finset (FinPlace D.E)} (h : D.IsMarked (p := 479) Λ) :
     6 * D.collisionDeficit 479 (placesInducing Λ) = (6 - (#Λ : ℝ)) * D.collisionDeficit 479 ∅ := by
-  classical
-  let n := orderOf (D.placeOfInt (-(479 : ℤ))) / D.o₀ 479
-  let u := D.aPlaces.filter fun σ ↦ inducedPlace σ ∉ Λ ∧ star (inducedPlace σ) ∉ Λ
-  have hc : (#u : ℝ) + (#Λ : ℝ)*n = #D.aPlaces := by exact_mod_cast h.card_uncovered_add_card_mul_pair
-  have ha : 6 * (n : ℝ) = #D.aPlaces := by exact_mod_cast six_mul_pair_size_479 D
-  have hu : 6 * (#u : ℝ) = (6 - (#Λ : ℝ)) * #D.aPlaces := by
-    rw [← ha] at hc ⊢
-    linear_combination 6 * hc
-  let R := 1 - ((((479 : ℕ) : ℝ)^D.o₀ 479)^2)⁻¹^(D.collisionTermCount 479)
-  let W : ℝ := D.collisionTermCount 479 * (D.offWeight : ℝ)
-  rw [h.collisionDeficit_formula, h.isExceptional.collisionDeficit_empty h.isSmallNonsplit]
-  change 6 * (D.collisionSum 479 (placesInducing Λ)*R - (#u : ℝ)*_ * _) =
-    (6 - (#Λ : ℝ)) * (D.collisionSum 479 ∅*R - (#D.aPlaces : ℝ)*_ * _)
-  have hraw := collisionSum_share_479 D ι h
-  linear_combination R * hraw - W * hu
+  simpa only [returnPairCount_479 D, Nat.cast_ofNat] using h.collisionDeficit_return_share
 
 private lemma first_power_below_479 (D : Data params) : (((479 : ℕ) : ℝ)^15) < D.x₁ := by
   have hx := (loss_scales D).2
