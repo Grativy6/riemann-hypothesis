@@ -166,6 +166,20 @@ lemma Parameters.placeClass_sq_eq (P : Parameters) {s ℓ i q : ℕ} (hℓ : ℓ
   rw [h_val, hy, map_mul, map_pow, map_intCast, map_natCast, mul_pow, ← Int.cast_pow,
     Int.isUnit_sq ε.isUnit, Int.cast_one, one_mul, ← pow_mul']
 
+/-- If two places have classes `±ℓⁱ` and `±ℓʲ`, raising their classes to powers `2j` and
+`2i` gives the same residue modulo every divisor of `q₁` coprime to `ℓ`. Squaring removes
+both signs, leaving `ℓ ^ (2 * i * j)` on each side. -/
+lemma Parameters.placeClass_pow_eq_of_two_returns (P : Parameters) {s ℓ i j q : ℕ}
+    (hℓ : ℓ.Prime) {u v : P.Φ s} {ε δ : ℤˣ}
+    (hu : (P.placeClass (Nat.ordCompl_dvd (P.q₁ s) ℓ) u).val = (ε : ℤ) * ℓ ^ i)
+    (hv : (P.placeClass (Nat.ordCompl_dvd (P.q₁ s) ℓ) v).val = (δ : ℤ) * ℓ ^ j)
+    (hq : q ∣ P.q₁ s) (hcop : ℓ.Coprime q) :
+    P.placeClass hq u ^ (2 * j) = P.placeClass hq v ^ (2 * i) := by
+  have hi := P.placeClass_sq_eq hℓ hu hq hcop
+  have hj := P.placeClass_sq_eq hℓ hv hq hcop
+  simp only [Units.ext_iff, Units.val_pow_eq_pow_val, pow_mul _ 2, hi, hj]
+  ring
+
 /-- In a commutative group, `(g ^ e₂ / g ^ e₁) ^ (a + b) = (g ^ e₃ / g ^ e₁) ^ b` forces
 `(a + b) e₂ ≡ a e₁ + b e₃` modulo the order of `g`. -/
 lemma modEq_orderOf_of_div_pow_eq {G : Type*} [CommGroup G] {g : G} {e₁ e₂ e₃ a b : ℕ}
@@ -176,6 +190,41 @@ lemma modEq_orderOf_of_div_pow_eq {G : Type*} [CommGroup G] {g : G} {e₁ e₂ e
   calc g ^ ((a + b) * e₂ + e₁ * b) = g ^ (e₃ * b + e₁ * (a + b)) := by
         simpa only [← pow_mul, ← pow_add, mul_comm e₂] using h_eq
     _ = g ^ (a * e₁ + b * e₃ + e₁ * b) := by ring_nf
+
+/-- For odd ell, the full sparseness test only needs the two-adic projection of the
+places. Their odd tower components can vary independently of the displayed exponent. -/
+theorem Parameters.sparse_odd_from_projection (P : Parameters) {s v L : ℕ} (g start : P.Φ s)
+    (hv : 2^(s+v) ∣ P.q₁ s) (place : ℕ → P.Φ s) (code : ℕ → ℕ) (U : Finset ℕ)
+    (shape : ∀ e ∈ U, P.placeClass hv (place e) = P.placeClass hv start * (P.placeClass hv g)^(code e))
+    (free : ∀ a ∈ U, ∀ b ∈ U, ∀ c ∈ U, ∀ i j : ℕ, 0 < i → 0 < j → i+j ≤ 2*l₀ s →
+      (i+j)*code b ≡ i*code a+j*code c [MOD orderOf (P.placeClass hv g)] → a=b ∧ b=c)
+    (hL : 2*l₀ s * (L + 1) < 2^s) {ℓ : ℕ} (hℓ : ℓ.Prime) (odd : Odd ℓ) (hbound : ℓ ≤ L)
+    {i j : ℕ} (hi : 0 < i) (hij : i < j) (hj : j < l₀ s) :
+    let φ := P.placeClass (Nat.ordCompl_dvd (P.q₁ s) ℓ)
+    ¬∃ σ ∈ U.image place, ∃ τ ∈ U.image place, ∃ ρ ∈ U.image place, ∃ e e' : ℤˣ,
+         (φ (τ/σ)).val=(e:ℤ)*ℓ^i ∧ (φ (ρ/σ)).val=(e':ℤ)*ℓ^j := by
+  classical
+  intro φ
+  rintro ⟨σ,hσ,τ,hτ,ρ,hρ,e,e',ri,rj⟩
+  obtain ⟨x,hx,rfl⟩ := mem_image.1 hσ
+  obtain ⟨y,hy,rfl⟩ := mem_image.1 hτ
+  obtain ⟨z,hz,rfl⟩ := mem_image.1 hρ
+  let ψ := P.placeClass hv
+  have cop (b : ℕ) : ℓ.Coprime (2^b) := .pow_right _ (by simpa using odd)
+  have rel : ψ (place y / place x) ^ (2 * j) = ψ (place z / place x) ^ (2 * i) :=
+    P.placeClass_pow_eq_of_two_returns hℓ ri rj hv (cop _)
+  obtain ⟨a,ha,rfl⟩ : ∃ a > 0, a+i=j := ⟨j-i,by omega,by omega⟩
+  have proj (m : ℕ) (hm : m ∈ U) : ψ (place m / place x) = ψ g^(code m)/ψ g^(code x) := by
+    simp only [ψ,map_div,shape m hm,shape x hx,mul_div_mul_left_eq_div]
+  have congruent : (2*a+2*i)*code y ≡ 2*a*code x+2*i*code z [MOD orderOf (ψ g)] := by
+    exact modEq_orderOf_of_div_pow_eq (by rwa [← proj y hy, ← proj z hz, ← mul_add])
+  obtain ⟨rfl,-⟩ := free x hx y hy z hz (2*a) (2*i) (by omega) (by omega) (by omega) congruent
+  have hpow : (ℓ : ZMod (2^(s+1)))^(2*i)=1 := by
+    simpa using (P.placeClass_sq_eq hℓ ri P.two_pow_dvd_q₁ (cop _)).symm
+  have ord : 2^s ≤ (ℓ+1)*(2*i) :=
+    two_pow_le_of_pow_eq_one (q := ℓ) hℓ.one_lt (by omega) (by simpa using hpow)
+  have small : (ℓ+1)*(2*i) ≤ (L+1)*(2*l₀ s) := Nat.mul_le_mul (by omega) (by omega)
+  linarith only [ord,small,hL]
 
 /-- If `(2 l₀ H) ^ n ≤ 2 ^ s` and `2 l₀ (L + 1) < 2 ^ s`, there is a set of at least
 `H ^ n / (n H ^ 2)` places of class `-1` modulo `q₀` that is sparse for the primes `ℓ ≤ L`: it has
@@ -211,12 +260,15 @@ lemma Parameters.exists_large_isSparse (P : Parameters) {s n H L : ℕ}
     simp
   refine ⟨S.image place, forall_mem_image.2 fun e _ ↦ h_class _ (dvd_mul_left P.q₀ (3 * l₀ s)) e,
     by rwa [card_image_of_injOn h_inj], ?_⟩
-  rintro ℓ hℓ hℓL i j hi hij hj φ ⟨σ, hσ, τ, hτ, ρ, hρ, ε, ε', h_ratio_i, h_ratio_j⟩
-  obtain ⟨e₁, he₁, rfl⟩ := mem_image.1 hσ
-  obtain ⟨e₂, he₂, rfl⟩ := mem_image.1 hτ
-  obtain ⟨e₃, he₃, rfl⟩ := mem_image.1 hρ
+  intro ℓ hℓ hℓL i j hi hij hj
   obtain rfl | h_odd := hℓ.eq_two_or_odd'
   · -- `ℓ = 2`: modulo `3 l₀ = 3 ^ c` the ratio is `1`, so `4 ^ i ≡ 1`; but `4` has order `l₀ > i`
+    intro φ
+    rintro ⟨σ, hσ, τ, hτ, ρ, hρ, ε, ε', h_ratio_i, h_ratio_j⟩
+    obtain ⟨e₁, he₁, rfl⟩ := mem_image.1 hσ
+    obtain ⟨e₂, he₂, rfl⟩ := mem_image.1 hτ
+    obtain ⟨e₃, he₃, rfl⟩ := mem_image.1 hρ
+
     set c : ℕ := Nat.log 3 s + 5
     have h_dvd : 3 ^ c ∣ P.q₁ s := Dvd.dvd.mul_left (dvd_mul_right ..) P.q₀
     have h_dvd' : 3 ^ c ∣ 3 * l₀ s * P.q₀ := ⟨P.q₀, by rw [l₀, ← pow_succ']⟩
@@ -227,31 +279,8 @@ lemma Parameters.exists_large_isSparse (P : Parameters) {s n H L : ℕ}
     have h_order : orderOf (1 + 3 : ZMod (3 ^ c)) = l₀ s :=
       ZMod.orderOf_one_add_prime Nat.prime_three (by norm_num) _
     linarith [orderOf_le_of_pow_eq_one hi h_four]
-  · -- `ℓ` odd: modulo `2 ^ (s + v)`, the `2 j`-th power of the first ratio and the `2 i`-th
-    -- power of the second are both `ℓ ^ (2 i j)`
-    have h_coprime_two (k : ℕ) : ℓ.Coprime (2 ^ k) := .pow_right _ (by simpa using h_odd)
-    have h_sq_i : (ψ (place e₂ / place e₁)).val ^ 2 = (ℓ : ZMod (2 ^ (s + v))) ^ (2 * i) :=
-      P.placeClass_sq_eq hℓ h_ratio_i hv (h_coprime_two _)
-    have h_sq_j : (ψ (place e₃ / place e₁)).val ^ 2 = (ℓ : ZMod (2 ^ (s + v))) ^ (2 * j) :=
-      P.placeClass_sq_eq hℓ h_ratio_j hv (h_coprime_two _)
-    have h_rel : ψ (place e₂ / place e₁) ^ (2 * j) = ψ (place e₃ / place e₁) ^ (2 * i) := by
-      simp only [Units.ext_iff, Units.val_pow_eq_pow_val, pow_mul _ 2, h_sq_i, h_sq_j]
-      ring
-    -- compare exponents of `g`: `2 j e₂ ≡ 2 (j - i) e₁ + 2 i e₃`
-    obtain ⟨a, ha, rfl⟩ : ∃ a > 0, a + i = j := ⟨j - i, by omega, by omega⟩
-    have h_cong : (2 * a + 2 * i) * e₂ ≡ 2 * a * e₁ + 2 * i * e₃ [MOD orderOf (ψ g)] := by
-      have h_ψ (e : ℕ) : ψ (place e / place e₁) = ψ g ^ e / ψ g ^ e₁ := by
-        simp only [place, mul_div_mul_left_eq_div, map_div, map_pow]
-      exact modEq_orderOf_of_div_pow_eq (by rwa [← h_ψ e₂, ← h_ψ e₃, ← mul_add])
-    obtain ⟨rfl, -⟩ : e₁ = e₂ ∧ e₂ = e₃ :=
-      h_free e₁ he₁ e₂ he₂ e₃ he₃ (2 * a) (2 * i) (by omega) (by omega) (by omega) h_cong
-    -- so `2 ^ (s + 1) ∣ ℓ ^ (2 i) - 1`, and the order of `ℓ` is too large for that
-    have h_pow : (ℓ : ZMod (2 ^ (s + 1))) ^ (2 * i) = 1 := by
-      simpa using (P.placeClass_sq_eq hℓ h_ratio_i P.two_pow_dvd_q₁ (h_coprime_two _)).symm
-    have h_order : 2 ^ s ≤ (ℓ + 1) * (2 * i) :=
-      two_pow_le_of_pow_eq_one (q := ℓ) hℓ.one_lt (by omega) (by simpa using h_pow)
-    have h_small : (ℓ + 1) * (2 * i) ≤ (L + 1) * (2 * l₀ s) := Nat.mul_le_mul (by omega) (by omega)
-    linarith only [h_order, h_small, hL]
+  · exact P.sparse_odd_from_projection g (P.placeOfInt s (-1)) hv place id S
+      (fun e _ ↦ by simp [place]) h_free hL hℓ h_odd hℓL hi hij hj
 
 /-- The Behrend count retains its dependence on the three-term window and the digit count. -/
 lemma Parameters.exists_isSparse_card_factor (P : Parameters) {s n L : ℕ} {W : ℝ} (hn : 0 < n) (hW : 1 ≤ W)
@@ -945,8 +974,8 @@ theorem eventually_exists_data_of_isAdmissibleData (P : Parameters) {ε : ℝ} (
 
 /-- Once ranks have been chosen, any admissible high-place selection can be passed on to
 the level construction together with its extra property. -/
-lemma Parameters.IsLargeScale.exists_isAdmissibleData_picking {P : Parameters} {x n : ℕ} {W : ℝ}
-    (Q : (s : ℕ) → Finset (P.Φ s) → Prop)
+lemma Parameters.IsLargeScale.exists_isAdmissibleData_selecting {P : Parameters} {x n : ℕ} {W : ℝ}
+    (Q : (m r s : ℕ) → Finset (P.Φ s) → Prop)
     (h_scale : P.IsLargeScale n (log x) W)
     (h_window : ∀ k : ℕ, 1 < k → ((P.q₀ * P.d : ℕ) : ℝ) ^ k ≤ W ^ (n + 7) →
       ∀ U ∈ Set.Icc W (W ^ (n + 7)), ∃ p : ℕ,
@@ -954,9 +983,9 @@ lemma Parameters.IsLargeScale.exists_isAdmissibleData_picking {P : Parameters} {
     (pick : ∀ (m r s : ℕ), exp (log x / 2) ≤ m → r ≤ 3 * exp (5 * log x) →
       2^s = m^22 → s ≤ 32*log x → W ≤ exp (log x / 2) → (2:ℝ)^s ≤ W^n →
         ∃ T : Finset (P.Φ s), (∀ σ ∈ T, P.placeClass (P.q₀.dvd_mul_right (towerDeg s)) σ = -1) ∧
-          towerDeg s ≤ #T * W^6 ∧ P.IsSparse s ((r+1-m)*(5*r)) T ∧ Odd #T ∧ Q s T) :
+          towerDeg s ≤ #T * W^6 ∧ P.IsSparse s ((r+1-m)*(5*r)) T ∧ Q m r s T) :
     ∃ (m r s b : ℕ) (T : Finset (P.Φ s)) (g : Fin 2 → ℕ) (α : 𝓞 P.K) (N : ℕ) (β : 𝓞 (P.E s)),
-      P.IsAdmissibleData x W m r s b T g α N β ∧ Odd #T ∧ Q s T := by
+      P.IsAdmissibleData x W m r s b T g α N β ∧ Q m r s T := by
   have hW_one : 1 ≤ W := h_scale.one_le
   have hW_pos : 0 < W := by linarith
   have hy : 100 ≤ log x := h_scale.hundred_le
@@ -973,7 +1002,7 @@ lemma Parameters.IsLargeScale.exists_isAdmissibleData_picking {P : Parameters} {
     h_two_pow.trans' (mod_cast (Nat.le_self_pow (by norm_num) m).trans h_pow.ge)
   have hm_lower : exp (log x / 2) ≤ m := hm.1.2
   -- places
-  obtain ⟨T, h_class_T, h_card, h_sparse, hodd, hfocus⟩ := pick m r s hm_lower hr_upper h_pow hs hW_le h_two_pow
+  obtain ⟨T, h_class_T, h_card, h_sparse, hfocus⟩ := pick m r s hm_lower hr_upper h_pow hs hW_le h_two_pow
   -- scales and weights
   obtain ⟨b, hb, hb_eq, hL, -⟩ := h_scale.exists_isLeast_dvd_log_log_mem_Icc hs
   set L : ℝ := log b
@@ -1017,7 +1046,22 @@ lemma Parameters.IsLargeScale.exists_isAdmissibleData_picking {P : Parameters} {
       levelPrime_injective := Matrix.injective_pair_iff_ne.2 h_ne
       levelPrime_mem i := by simpa only [hb_eq] using (hg i).mem_Icc
       α_mul_star := h_norm
-      N_prime := hN, N_modEq_one := hN_mod, log_N_mem := hN_log, β_mul_star := hβ }, hodd, hfocus⟩
+      N_prime := hN, N_modEq_one := hN_mod, log_N_mem := hN_log, β_mul_star := hβ }, hfocus⟩
+
+/-- The odd-cardinality instance of the set-selection theorem. -/
+lemma Parameters.IsLargeScale.exists_isAdmissibleData_picking {P : Parameters} {x n : ℕ} {W : ℝ}
+    (Q : (s : ℕ) → Finset (P.Φ s) → Prop)
+    (h_scale : P.IsLargeScale n (log x) W)
+    (h_window : ∀ k : ℕ, 1 < k → ((P.q₀ * P.d : ℕ) : ℝ) ^ k ≤ W ^ (n + 7) →
+      ∀ U ∈ Set.Icc W (W ^ (n + 7)), ∃ p : ℕ,
+        p.Prime ∧ p ≡ 1 [MOD (P.q₀ * P.d) ^ k] ∧ log p ∈ Set.Icc U (U + W))
+    (pick : ∀ (m r s : ℕ), exp (log x / 2) ≤ m → r ≤ 3 * exp (5 * log x) →
+      2^s = m^22 → s ≤ 32*log x → W ≤ exp (log x / 2) → (2:ℝ)^s ≤ W^n →
+        ∃ T : Finset (P.Φ s), (∀ σ ∈ T, P.placeClass (P.q₀.dvd_mul_right (towerDeg s)) σ = -1) ∧
+          towerDeg s ≤ #T * W^6 ∧ P.IsSparse s ((r+1-m)*(5*r)) T ∧ Odd #T ∧ Q s T) :
+    ∃ (m r s b : ℕ) (T : Finset (P.Φ s)) (g : Fin 2 → ℕ) (α : 𝓞 P.K) (N : ℕ) (β : 𝓞 (P.E s)),
+      P.IsAdmissibleData x W m r s b T g α N β ∧ Odd #T ∧ Q s T := by
+  exact h_scale.exists_isAdmissibleData_selecting (fun _ _ s T ↦ Odd #T ∧ Q s T) h_window pick
 
 /-- Choose admissible data whose high places have odd cardinality and lie over the negative unit
 modulo twelve times the base modulus. -/

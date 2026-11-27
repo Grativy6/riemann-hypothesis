@@ -1,6 +1,7 @@
 module
 
 public import New.Reduction.Data.AdmissibleData
+public import New.Reduction.Data.Magnitudes
 import Lib.General.NumberTheory.FirstReturn
 import Mathlib.Tactic
 
@@ -154,5 +155,68 @@ theorem translateHighPlaces_weight_sum {A : Type*} [AddCommMonoid A] (D : Data P
     (hg) (F : ℕ → A) :
     ∑ τ : D.Φ, F ((D.translateHighPlaces g hg).weight τ) = ∑ τ : D.Φ, F (D.weight τ) :=
   Equiv.sum_comp (Equiv.mulLeft g⁻¹) (fun τ : D.Φ ↦ F (D.weight τ))
+
+end New.Data
+
+open Finset Real
+namespace New.Data
+
+variable {P : Parameters}
+
+/-- Reassigning the high places is permitted when their class, cardinality and actual
+rank-dependent sparseness test all match the requirements for the fixed data. -/
+structure HighPlaceChoice (D : Data P) where
+  places : Finset D.Φ
+  same_card : #places = #D.bPlaces
+  base : ∀ σ ∈ places, P.placeClass (P.q₀.dvd_mul_right (towerDeg D.towerExp)) σ = -1
+  sparse : P.IsSparse D.towerExp ((D.r+1-D.m)*(5*D.r)) places
+
+/-- Sum two constant values over a subset and its complement. -/
+lemma sum_by_membership {α R : Type*} [Fintype α] [DecidableEq α] [AddCommMonoid R]
+    (S : Finset α) (a b : R) :
+    (∑ i, if i ∈ S then a else b) = #S • a + (Fintype.card α-#S) • b := by
+  classical
+  rw [← S.sum_add_sum_compl]
+  congr 1
+  · rw [← sum_const]
+    exact sum_congr rfl fun i hi ↦ ite_eq_left hi
+  · rw [← card_compl, ← sum_const]
+    exact sum_congr rfl fun i hi ↦ ite_eq_right (mem_compl.1 hi)
+
+/-- Use an eligible replacement of equal size. The sum of the log weights is unchanged
+so the old chosen level prime still satisfies its required interval. -/
+noncomputable def HighPlaceChoice.toData {D : Data P} (c : HighPlaceChoice D) : Data P := by
+  classical
+  let weight := fun σ ↦ if σ ∈ c.places then D.natB else D.offWeight
+  have logs : (∑ σ : D.Φ, log (weight σ)) = ∑ σ : D.Φ, log (D.weight σ) := by
+    have read (S : Finset D.Φ) :
+        (∑ σ, log ((if σ ∈ S then D.natB else D.offWeight : ℕ) : ℝ)) =
+          #S • log D.natB + (Fintype.card D.Φ-#S) • log D.offWeight := by
+      simpa only [Nat.cast_ite,apply_ite] using sum_by_membership S (log D.natB) (log D.offWeight)
+    simp only [weight,D.weight_eq_ite,read,c.same_card]
+  exact {D with
+    bPlaces := c.places
+    weight := weight
+    weight_eq := by intro σ; rfl
+    placeClass_of_mem_bPlaces := c.base
+    sparse := c.sparse
+    towerDeg_le_card_bPlaces_mul := by rw [c.same_card]; exact D.towerDeg_le_card_bPlaces_mul
+    log_N_mem := by simpa only [Parameters.logLevelMin,logs] using D.log_N_mem }
+
+/-- Each readout of the individual weights has the same total before and after the
+replacement. Singleton multisets as readouts recover their complete multiset. -/
+theorem HighPlaceChoice.weight_sum {D : Data P} (c : HighPlaceChoice D) {R : Type*} [AddCommMonoid R]
+    (F : ℕ → R) : ∑ σ : D.Φ, F (c.toData.weight σ) = ∑ σ : D.Φ, F (D.weight σ) := by
+  classical
+  change (∑ σ : D.Φ, F (if σ ∈ c.places then D.natB else D.offWeight)) = _
+  simp only [D.weight_eq_ite, apply_ite, sum_by_membership, c.same_card]
+
+/-- Both level generators and all scalar fields are inherited from D. -/
+theorem HighPlaceChoice.fields {D : Data P} (c : HighPlaceChoice D) :
+    c.toData.natX = D.natX ∧ c.toData.natX₁ = D.natX₁ ∧ c.toData.natB = D.natB ∧
+      c.toData.m = D.m ∧ c.toData.r = D.r ∧ c.toData.towerExp = D.towerExp ∧
+      c.toData.levelPrime = D.levelPrime ∧ c.toData.piMBar = D.piMBar ∧
+      c.toData.N = D.N ∧ c.toData.piN = D.piN ∧ #c.toData.bPlaces = #D.bPlaces :=
+  ⟨rfl,rfl,rfl,rfl,rfl,rfl,rfl,rfl,rfl,rfl,c.same_card⟩
 
 end New.Data
