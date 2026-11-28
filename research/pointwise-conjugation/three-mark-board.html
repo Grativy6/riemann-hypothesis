@@ -1,0 +1,98 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Three marks, one swap</title>
+<style>
+:root{color-scheme:light;--ink:#20332e;--muted:#4a6258;--line:#c6d5c9;--paper:#f5f5ed;--panel:#fffef7;--copper:#915133;--blue:#304e84}
+*{box-sizing:border-box}body{margin:0;background:var(--paper);color:var(--ink);font:16px/1.5 "Source Sans 3",system-ui,sans-serif}
+main{max-width:980px;margin:0 auto;padding:clamp(1.05rem,4vw,3.3rem)}h1,h2,h3,p{margin:0}
+h1{font:600 clamp(2.1rem,6vw,4rem)/1 "Baskervville",Georgia,serif;letter-spacing:-.035em;margin-bottom:.65rem}
+h2{font:600 1.55rem/1.15 "Baskervville",Georgia,serif;margin-bottom:.55rem}h3{font-size:1.02rem}header p{max-width:65ch;color:var(--muted)}header{margin-bottom:1.4rem}
+form,.panel{border:1px solid var(--line);background:var(--panel);border-radius:.55rem;padding:clamp(.85rem,2.4vw,1.5rem)}
+fieldset{border:0;padding:0;margin:0;display:grid;gap:.85rem;grid-template-columns:repeat(3,minmax(0,1fr))}label{font-weight:650}
+input{width:100%;margin-top:.2rem;display:block;border:1px solid #9bad9e;border-radius:.3rem;padding:.42rem .6rem;background:white;color:var(--ink);font:inherit;font-variant-numeric:tabular-nums}
+button{padding:.35rem .72rem;background:transparent;border:1px solid #9bad9e;color:var(--ink);border-radius:1rem;cursor:pointer;font:inherit;font-size:.89rem}
+button:hover{background:#eaf1e8}button:focus-visible,input:focus-visible{outline:3px solid var(--blue);outline-offset:2px}
+.presets{display:flex;gap:.42rem;flex-wrap:wrap;margin-top:1rem}.board{display:grid;grid-template-columns:1fr 1.12fr;gap:.9rem;margin-top:.9rem;align-items:stretch}
+.panel{min-width:0}.strip{display:grid;gap:.45rem;margin:.9rem 0}.mark{display:grid;grid-template-columns:1.6rem 1fr auto;gap:.55rem;align-items:center;padding:.46rem .65rem;background:#edf1e8;border:1px solid var(--line);border-radius:.32rem}.tag{font-weight:750}.mark:nth-child(2){background:#f7ece2}.mark:nth-child(2) .tag{color:var(--copper)}.mark:nth-child(3){background:#e9edf6}.mark:nth-child(3) .tag{color:var(--blue)}
+code,.num,output{font-family:"IBM Plex Mono",Consolas,monospace;font-variant-numeric:tabular-nums;overflow-wrap:anywhere}small,.sub{color:var(--muted)}.summary{padding-top:.65rem;border-top:1px solid var(--line)}.summary strong{display:block;font-size:1.05rem}
+.result{font-weight:700;margin:.4rem 0}.result[data-ok="false"]{color:#804326}.result[data-ok="true"]{color:#265b43}
+.equations{display:grid;gap:.15rem;border-left:3px solid #a6b8a6;padding:.25rem .65rem;margin:.75rem 0}
+.matrix{display:inline-grid;grid-template-columns:repeat(2,minmax(1.5rem,auto));gap:.15rem 1.25rem;padding:.25rem .6rem;margin:.4rem .6rem .35rem 0;border-inline:2px solid var(--ink);text-align:right;vertical-align:middle;max-width:100%}
+.receipt{margin-top:.75rem}.count{font-weight:700}#error{color:#8e351e;margin-top:.6rem}footer{border-top:1px solid var(--line);margin-top:1rem;padding-top:.65rem;color:var(--muted);font-size:.87rem}footer a{color:#304e65}
+[hidden]{display:none!important}
+@media(max-width:670px){.board{grid-template-columns:1fr}fieldset{gap:.55rem}label{font-size:.9rem}.mark{grid-template-columns:1.5rem 1fr auto}}
+</style>
+</head>
+<body><main>
+<header><h1>Three marks, one swap</h1><p>Fix the origin A. Swap B and C. A motion of three labeled points can make sense even when no linear map of the whole residue grid can perform it.</p></header>
+<form id="controls" novalidate><fieldset aria-label="Board settings">
+<label>Stretch <i>m</i><input id="stretch" inputmode="numeric" value="17" autocomplete="off"></label>
+<label>Modulus <i>n</i><input id="modulus" inputmode="numeric" value="289" autocomplete="off"></label>
+<label>Scale <i>k</i><input id="scale" inputmode="numeric" value="1" autocomplete="off"></label>
+</fieldset><div class="presets" aria-label="Examples">
+<button type="button" data-example="17,17,1">At 17</button><button type="button" data-example="17,19,1">At 19</button><button type="button" data-example="17,289,1">At 289</button><button type="button" data-example="17,289,17">Scale by 17 at 289</button>
+</div><p id="error" role="alert" hidden></p></form>
+<div class="board" id="board" aria-live="polite">
+<section class="panel"><h2>What the marks see</h2><p class="sub">Coordinates are reduced modulo <span class="num" id="n-left"></span>. The permutation shown here uses scale 1.</p>
+<div class="strip">
+<div class="mark"><span class="tag">A</span><span class="num" id="mark0"></span><span>stays A</span></div>
+<div class="mark"><span class="tag">B</span><span class="num" id="mark1"></span><span>goes to C</span></div>
+<div class="mark"><span class="tag">C</span><span class="num" id="mark2"></span><span>goes to B</span></div></div>
+<div class="summary"><strong id="distinct"></strong><p id="label-action"></p></div>
+</section>
+<section class="panel"><h2>What the grid needs</h2><p class="sub">Seek a matrix <i>T</i> sending B to <i>k</i>C and C to <i>k</i>B. Scaling changes the requested outputs.</p>
+<div class="equations"><span class="num" id="eq1"></span><span class="num" id="eq2"></span></div>
+<p class="result" id="result"></p><p id="reason"></p>
+<div id="witness" class="receipt"><h3>One matrix</h3><div class="matrix num" aria-label="Matrix entries by row"><span>0</span><span id="b-entry"></span><span id="m-entry"></span><span>0</span></div><p id="count"></p></div>
+</section></div>
+<footer>Christopher Daniel Pang and Hearthline · 28 November 2026 · <a href="https://github.com/leanprover-community/riemann-hypothesis/pull/9929">Related community proof</a></footer>
+</main><script>
+'use strict';
+const byId = id => document.getElementById(id);
+const fields = ['stretch','modulus','scale'].map(byId);
+const show = (id, text) => { byId(id).textContent = text; };
+const mod = (x,n) => ((x%n)+n)%n;
+function gcdAndCoefficient(a,b){
+  let x=a,y=b,s=1n,t=0n;
+  while(y!==0n){const q=x/y;[x,y]=[y,x-q*y];[s,t]=[t,s-q*t];}
+  return {gcd:x,coefficient:s};
+}
+function refresh(){
+  const valid=fields.map(input=>/^\d+$/.test(input.value.trim()));
+  if(valid[1]) valid[1]=BigInt(fields[1].value)>0n;
+  fields.forEach((input,i)=>input.setAttribute('aria-invalid',String(!valid[i])));
+  const bad=valid.includes(false);
+  byId('error').hidden=!bad;byId('board').hidden=bad;
+  if(bad){show('error','Use a positive integer modulus and nonnegative integer stretch and scale.');return;}
+  const [m,n,k]=fields.map(input=>BigInt(input.value));
+  const {gcd:d,coefficient:s}=gcdAndCoefficient(m,n);
+  const reduced=mod(m,n),unit=d===1n,ok=k%d===0n;
+  show('n-left',n);show('mark0','(0, 0)');show('mark1','('+mod(1n,n)+', 0)');show('mark2','(0, '+reduced+')');
+  const marks=n===1n?1:reduced===0n?2:3;
+  show('distinct',marks===1?'One visible point':marks+' distinct visible points');
+  show('label-action',n===1n?'All three labels give the sole point of this grid.':reduced===0n?
+    'A and C coincide. The swap asks this one input to stay at A and to move to B.':
+    unit?'All six label permutations extend to affine maps of this grid.':
+    'All six label permutations act on the three marks. Only the two fixing B extend to affine maps of the grid.');
+  show('eq1','Column 1 = (0, '+mod(k*m,n)+')');
+  show('eq2',m+' × column 2 ≡ ('+mod(k,n)+', 0)  mod '+n);
+  byId('result').dataset.ok=String(ok);byId('witness').hidden=!ok;
+  show('result',ok?'The scaled equations have a solution.':'No matrix satisfies these equations.');
+  show('reason','The greatest common divisor of '+m+' and '+n+' is '+d+'. It '+(ok?'divides ':'does not divide ')+k+'.');
+  if(ok){
+    const b=mod(s*(k/d),n/d);
+    show('b-entry',b);show('m-entry',mod(k*m,n));
+    const count=d*d;
+    show('count',count===1n?'This is the unique matrix.':count+' matrices fit. Each entry of column 2 has '+d+' choices.');
+  }
+}
+byId('controls').addEventListener('submit',e=>e.preventDefault());
+fields.forEach(input=>input.addEventListener('input',refresh));
+document.querySelectorAll('[data-example]').forEach(button=>button.addEventListener('click',()=>{
+  button.dataset.example.split(',').forEach((v,i)=>{fields[i].value=v;});refresh();
+}));
+refresh();
+</script></body></html>
