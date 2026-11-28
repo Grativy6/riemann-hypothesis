@@ -5,6 +5,7 @@ public import New.Reduction.Data.AdmissibleData
 import New.Reduction.Data.Existence
 import New.Reduction.Data.Magnitudes
 import New.Reduction.MainInequality
+import TauCeti.NumberTheory.DirichletCharacter.LFunction.ChangeLevel
 import New.Reduction.Zeros.Criterion
 import New.Reduction.Zeros.PrimeNumberTheorem
 public import TauCeti.NumberTheory.DirichletCharacter.LFunction.ZeroReflection -- shake: keep (`New.Main` uses it)
@@ -247,35 +248,34 @@ theorem eventually_primeRemainder_le_mul_rpow {q₀ : ℕ} [NeZero q₀] (hq₀ 
 /-- **Main theorem**, in half-plane form: no Dirichlet `L`-function vanishes in `re s > 1/2`
 (with `s ≠ 1` for a principal character). -/
 theorem grh : DirichletLNonvanishingRightOfHalf := by
-  -- Apply the one-sided criterion to the character modulo `q₀ = 18480 q` induced by `χ`, with
-  -- `d₀ = q₀ / 2 - 1 = 9240 q - 1` and an exponent `β` between `1 / 2` and `re ρ`.
   intro q _ χ ρ hρ h_pole
   -- The case `ρ = 1` is Dirichlet's theorem.
   obtain rfl | hρ_ne := eq_or_ne ρ 1
   · exact χ.LFunction_ne_zero_of_one_le_re h_pole le_rfl
   obtain ⟨β, hβ, hβρ⟩ : ∃ β : ℝ, 1 / 2 < β ∧ β < ρ.re := exists_between hρ
-  have hq_pos : 0 < q := NeZero.pos q
-  obtain ⟨d₀, hd₀⟩ : ∃ d₀ : ℕ, d₀ + 1 = 9240 * q := ⟨9240 * q - 1, by omega⟩
-  -- `d₀` is odd and `q₀ = 2 (d₀ + 1)`.
-  have hd₀_cop : d₀.Coprime (18480 * q) := by
-    have h_two : d₀.Coprime 2 := (Nat.odd_iff.2 (by omega)).coprime_two_right
-    have h_eq : 18480 * q = 2 * (d₀ + 1) := by omega
-    rw [h_eq]
-    exact h_two.mul_right (by simp)
-  -- The one-sided bound is the hypothesis of the criterion.
-  have h_criterion_bound (d : Nat.Primes) (hd : (d : ℕ) ≡ d₀ [MOD 18480 * q]) :
-      ∃ A : ℝ, ∀ᶠ x : ℝ in atTop, primeRemainder d (18480 * q) x ≤ A * x ^ (β - 1) := by
-    refine ⟨128 * (18480 * q).totient + 32, ?_⟩
-    have hd₀_eq : d₀ = 18480 * q / 2 - 1 := by omega
-    have h_criterion_exponent : β - 1 = -1 / 2 + (β - 1 / 2) := by ring
-    rw [hd₀_eq] at hd
-    rw [h_criterion_exponent]
-    exact eventually_primeRemainder_le_mul_rpow (dvd_mul_right 18480 q) hd (sub_pos.2 hβ)
-  have h_induced_nonvanishing : (χ.changeLevel (dvd_mul_left q 18480)).LFunction ρ ≠ 0 :=
-    LFunction_ne_zero_of_primeRemainder_le (by omega) (by omega) hd₀_cop hβ
-      h_criterion_bound _ hρ_ne hβρ
-  -- Inducing multiplies `L(s, χ)` by finitely many factors `1 - χ(p) p ^ (-s)`.
-  rw [LFunction_changeLevel _ χ h_pole] at h_induced_nonvanishing
-  exact left_ne_zero_of_mul h_induced_nonvanishing
+  -- Work at the least level divisible by both 18480 and the conductor of the character.
+  let N := Nat.lcm 18480 χ.conductor
+  let : NeZero χ.conductor := ⟨χ.conductor_ne_zero⟩
+  let : NeZero N := ⟨Nat.lcm_ne_zero (by decide) χ.conductor_ne_zero⟩
+  have hN : 18480 ∣ N := Nat.dvd_lcm_left _ _
+  have hf : χ.conductor ∣ N := Nat.dvd_lcm_right _ _
+  let a := N / 2 - 1
+  have hNpos := NeZero.pos N
+  have ha8 : a % 8 = 7 := by dsimp only [a]; omega
+  have ha : a.Coprime N := by
+    have odd : Odd a := Nat.odd_iff.2 (by omega)
+    rw [show N = 2 * (a + 1) by dsimp only [a]; omega]
+    exact odd.coprime_two_right.mul_right (by simp)
+  have lifted : (χ.primitiveCharacter.changeLevel hf).LFunction ρ ≠ 0 := by
+    refine LFunction_ne_zero_of_primeRemainder_le ((by decide : 8 ∣ 18480).trans hN) ha8 ha
+      hβ ?_ _ hρ_ne hβρ
+    intro d hd
+    refine ⟨128 * N.totient + 32, ?_⟩
+    rw [show β - 1 = -1 / 2 + (β - 1 / 2) by ring]
+    exact eventually_primeRemainder_le_mul_rpow hN hd (sub_pos.2 hβ)
+  -- At positive real part the Euler factors introduced by either change of level are nonzero.
+  have hpos : 0 < ρ.re := by linarith
+  exact fun hz ↦ lifted ((χ.primitiveCharacter.LFunction_changeLevel_eq_zero_iff hf hpos
+    (.inr hρ_ne)).2 ((χ.LFunction_primitiveCharacter_eq_zero_iff hpos (.inr hρ_ne)).2 hz))
 
 end New
