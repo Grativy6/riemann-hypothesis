@@ -5,6 +5,7 @@ public import New.Reduction.Data.AdmissibleData
 import New.Reduction.Data.Existence
 import New.Reduction.Data.Magnitudes
 import New.Reduction.MainInequality
+import TauCeti.NumberTheory.DirichletCharacter.LFunction.ChangeLevel
 import New.Reduction.Zeros.Criterion
 import New.Reduction.Zeros.PrimeNumberTheorem
 public import TauCeti.NumberTheory.DirichletCharacter.LFunction.ZeroReflection -- shake: keep (`New.Main` uses it)
@@ -22,7 +23,7 @@ remainders there by `x^(-2)`. The passage to real `x` and the choice of a smalle
 the resulting exponent bound.
 
 Notions from other files:
-* `Parameters`: a multiple `q₀ = P.q₀` of `18480` and a prime `d = P.d ≡ q₀ / 2 - 1` modulo `q₀`.
+* `Parameters`: a geometric level divisible by 1680 and an admissible prime.
 * `primeRemainder d q x`: the remainder `R_q(x) = ∑_{n ≤ x} λ(n) (1/n - 1/x) - log x / φ(q) - c_q`.
   Here `λ(n) = Λ(n) (1 - chiK d n)` for `n ≡ 1` modulo `q` and `0` otherwise, with `chiK d` the
   Legendre symbol modulo `d`; for odd `d` prime to `q`, `c_q` is the constant with `R_q(x) → 0`.
@@ -207,6 +208,35 @@ lemma dvd_two_mul_succ_and_not_dvd_succ {q₀ d : ℕ} (hq₀_pos : 0 < q₀) (h
   · rw [← natCast_eq_zero_iff, hd_succ, natCast_eq_zero_iff]
     exact Nat.not_dvd_of_pos_of_lt (by omega) (by omega)
 
+/-- The geometric one-sided bound at any admissible parameters. -/
+theorem Parameters.eventually_primeRemainder_le_mul_rpow (P : Parameters) {ε : ℝ} (hε : 0 < ε) :
+    ∀ᶠ y : ℝ in atTop, primeRemainder P.d P.q₀ y ≤
+      (128 * P.q₀.totient + 32) * y ^ (-1 / 2 + ε) := by
+  -- It suffices to prove the bound with `6 δ` in place of `ε`, for `0 < δ < 1/100`.
+  obtain ⟨δ, hδ, hδ_lt, h_exponent_slack⟩ : ∃ δ > (0 : ℝ), δ < 1 / 100 ∧ 6 * δ ≤ ε := by
+    refine ⟨min (1 / 200) (ε / 6), by positivity, ?_, ?_⟩
+    · linarith [min_le_left (1 / 200) (ε / 6)]
+    · linarith [min_le_right (1 / 200) (ε / 6)]
+  set C : ℝ := 64 * P.q₀.totient + 3
+  set t : ℝ := -1 / 2 + 6 * δ with ht
+  have ht_ge : -1 ≤ t := by linarith
+  have ht_le : t ≤ 0 := by linarith
+  have h_integer_bound : ∀ᶠ y : ℝ in atTop, primeRemainder P.d P.q₀ ⌊y⌋₊ ≤ C * (⌊y⌋₊ : ℝ) ^ t :=
+    tendsto_nat_floor_atTop.eventually (eventually_primeRemainder_natCast_le P hδ hδ_lt)
+  filter_upwards [h_integer_bound, eventually_ge_atTop 2] with y hy_floor hy
+  have hy_one : 1 ≤ y := one_le_two.trans hy
+  calc primeRemainder P.d P.q₀ y
+      ≤ primeRemainder P.d P.q₀ ⌊y⌋₊ + 26 / y :=
+        sub_le_iff_le_add'.1 (primeRemainder_sub_primeRemainder_floor_le hy)
+    _ ≤ C * (⌊y⌋₊ : ℝ) ^ t + 26 * y ^ (-1 : ℝ) := by grw [hy_floor, rpow_neg_one, div_eq_mul_inv]
+    _ ≤ C * (2 * y ^ t) + 26 * y ^ t := by
+        gcongr
+        exact natFloor_rpow_le_two_mul_rpow hy ht_ge ht_le
+    _ = (128 * P.q₀.totient + 32) * y ^ t := by dsimp [C]; ring
+    _ ≤ (128 * P.q₀.totient + 32) * y ^ (-1 / 2 + ε) :=
+      mul_le_mul_of_nonneg_left (rpow_le_rpow_of_exponent_le hy_one (by linarith [ht]))
+          (by positivity)
+
 /-- **One-sided bound.** Let `q₀ > 0` be a multiple of `18480`, let `d ≡ q₀ / 2 - 1` modulo `q₀` be
 a prime, and let `ε > 0`. Then `R = primeRemainder d q₀` satisfies
 `R(y) ≤ (128 φ(q₀) + 32) y ^ (-1/2 + ε)` for all large real `y`. -/
@@ -214,68 +244,38 @@ theorem eventually_primeRemainder_le_mul_rpow {q₀ : ℕ} [NeZero q₀] (hq₀ 
     [hd_prime : Fact d.Prime] (hd : d ≡ q₀ / 2 - 1 [MOD q₀]) {ε : ℝ} (hε : 0 < ε) :
     ∀ᶠ y : ℝ in atTop, primeRemainder d q₀ y ≤ (128 * q₀.totient + 32) * y ^ (-1 / 2 + ε) := by
   let P : Parameters :=
-    { q₀ := q₀
-      d := d
-      dvd_q₀ := hq₀
-      d_prime := hd_prime.out
-      q₀_dvd_and_not_dvd := dvd_two_mul_succ_and_not_dvd_succ (NeZero.pos q₀) (by omega) hd }
-  -- It suffices to prove the bound with `6 δ` in place of `ε`, for `0 < δ < 1/100`.
-  obtain ⟨δ, hδ, hδ_lt, h_exponent_slack⟩ : ∃ δ > (0 : ℝ), δ < 1 / 100 ∧ 6 * δ ≤ ε := by
-    refine ⟨min (1 / 200) (ε / 6), by positivity, ?_, ?_⟩
-    · linarith [min_le_left (1 / 200) (ε / 6)]
-    · linarith [min_le_right (1 / 200) (ε / 6)]
-  set C : ℝ := 64 * q₀.totient + 3
-  set t : ℝ := -1 / 2 + 6 * δ with ht
-  have ht_ge : -1 ≤ t := by linarith
-  have ht_le : t ≤ 0 := by linarith
-  have h_integer_bound : ∀ᶠ y : ℝ in atTop, primeRemainder d q₀ ⌊y⌋₊ ≤ C * (⌊y⌋₊ : ℝ) ^ t :=
-    tendsto_nat_floor_atTop.eventually (eventually_primeRemainder_natCast_le P hδ hδ_lt)
-  filter_upwards [h_integer_bound, eventually_ge_atTop 2] with y hy_floor hy
-  have hy_one : 1 ≤ y := one_le_two.trans hy
-  calc primeRemainder d q₀ y
-      ≤ primeRemainder d q₀ ⌊y⌋₊ + 26 / y :=
-        sub_le_iff_le_add'.1 (primeRemainder_sub_primeRemainder_floor_le hy)
-    _ ≤ C * (⌊y⌋₊ : ℝ) ^ t + 26 * y ^ (-1 : ℝ) := by grw [hy_floor, rpow_neg_one, div_eq_mul_inv]
-    _ ≤ C * (2 * y ^ t) + 26 * y ^ t := by
-        gcongr
-        exact natFloor_rpow_le_two_mul_rpow hy ht_ge ht_le
-    _ = (128 * q₀.totient + 32) * y ^ t := by dsimp [C]; ring
-    _ ≤ (128 * q₀.totient + 32) * y ^ (-1 / 2 + ε) :=
-      mul_le_mul_of_nonneg_left (rpow_le_rpow_of_exponent_le hy_one (by linarith [ht]))
-          (by positivity)
+    ⟨q₀, d, (by decide : 1680 ∣ 18480).trans hq₀, hd_prime.out,
+      geometricPrimeConditions_of_half_turn hq₀
+        (dvd_two_mul_succ_and_not_dvd_succ (NeZero.pos q₀) (by omega) hd)⟩
+  exact P.eventually_primeRemainder_le_mul_rpow hε
 
 /-- **Main theorem**, in half-plane form: no Dirichlet `L`-function vanishes in `re s > 1/2`
 (with `s ≠ 1` for a principal character). -/
 theorem grh : DirichletLNonvanishingRightOfHalf := by
-  -- Apply the one-sided criterion to the character modulo `q₀ = 18480 q` induced by `χ`, with
-  -- `d₀ = q₀ / 2 - 1 = 9240 q - 1` and an exponent `β` between `1 / 2` and `re ρ`.
   intro q _ χ ρ hρ h_pole
   -- The case `ρ = 1` is Dirichlet's theorem.
   obtain rfl | hρ_ne := eq_or_ne ρ 1
   · exact χ.LFunction_ne_zero_of_one_le_re h_pole le_rfl
   obtain ⟨β, hβ, hβρ⟩ : ∃ β : ℝ, 1 / 2 < β ∧ β < ρ.re := exists_between hρ
-  have hq_pos : 0 < q := NeZero.pos q
-  obtain ⟨d₀, hd₀⟩ : ∃ d₀ : ℕ, d₀ + 1 = 9240 * q := ⟨9240 * q - 1, by omega⟩
-  -- `d₀` is odd and `q₀ = 2 (d₀ + 1)`.
-  have hd₀_cop : d₀.Coprime (18480 * q) := by
-    have h_two : d₀.Coprime 2 := (Nat.odd_iff.2 (by omega)).coprime_two_right
-    have h_eq : 18480 * q = 2 * (d₀ + 1) := by omega
-    rw [h_eq]
-    exact h_two.mul_right (by simp)
-  -- The one-sided bound is the hypothesis of the criterion.
-  have h_criterion_bound (d : Nat.Primes) (hd : (d : ℕ) ≡ d₀ [MOD 18480 * q]) :
-      ∃ A : ℝ, ∀ᶠ x : ℝ in atTop, primeRemainder d (18480 * q) x ≤ A * x ^ (β - 1) := by
-    refine ⟨128 * (18480 * q).totient + 32, ?_⟩
-    have hd₀_eq : d₀ = 18480 * q / 2 - 1 := by omega
-    have h_criterion_exponent : β - 1 = -1 / 2 + (β - 1 / 2) := by ring
-    rw [hd₀_eq] at hd
-    rw [h_criterion_exponent]
-    exact eventually_primeRemainder_le_mul_rpow (dvd_mul_right 18480 q) hd (sub_pos.2 hβ)
-  have h_induced_nonvanishing : (χ.changeLevel (dvd_mul_left q 18480)).LFunction ρ ≠ 0 :=
-    LFunction_ne_zero_of_primeRemainder_le hd₀_cop hβ 0
-      (fun d _ hd ↦ h_criterion_bound d hd) _ hρ_ne hβρ
-  -- Inducing multiplies `L(s, χ)` by finitely many factors `1 - χ(p) p ^ (-s)`.
-  rw [LFunction_changeLevel _ χ h_pole] at h_induced_nonvanishing
-  exact left_ne_zero_of_mul h_induced_nonvanishing
+  let N := Nat.lcm 1680 χ.conductor
+  let : NeZero χ.conductor := ⟨χ.conductor_ne_zero⟩
+  let : NeZero N := ⟨Nat.lcm_ne_zero (by decide) χ.conductor_ne_zero⟩
+  have hN : 1680 ∣ N := Nat.dvd_lcm_left _ _
+  have hf : χ.conductor ∣ N := Nat.dvd_lcm_right _ _
+  -- The character only enters the geometry at N. The prime is chosen in a separate progression
+  -- which records each odd factor once and also enforces the splitting condition at eleven.
+  have h_bound (d : Nat.Primes) (_ : 0 < (d : ℕ))
+      (hd : (d : ℕ) ≡ twistSearchResidue N [MOD twistSearchModulus N]) :
+      ∃ A : ℝ, ∀ᶠ x : ℝ in atTop, primeRemainder d N x ≤ A * x ^ (β - 1) := by
+    let P : Parameters := ⟨N, d, hN, d.prop, geometricPrimeConditions_of_search hN hd⟩
+    refine ⟨128 * N.totient + 32, ?_⟩
+    have e : β - 1 = -1 / 2 + (β - 1 / 2) := by ring
+    rw [e]
+    exact P.eventually_primeRemainder_le_mul_rpow (sub_pos.2 hβ)
+  have lifted : (χ.primitiveCharacter.changeLevel hf).LFunction ρ ≠ 0 :=
+    LFunction_ne_zero_of_primeRemainder_le (twistSearchResidue_coprime N) hβ 0 h_bound _ hρ_ne hβρ
+  have hpos : 0 < ρ.re := by linarith
+  exact fun hz ↦ lifted ((χ.primitiveCharacter.LFunction_changeLevel_eq_zero_iff hf hpos
+    (.inr hρ_ne)).2 ((χ.LFunction_primitiveCharacter_eq_zero_iff hpos (.inr hρ_ne)).2 hz))
 
 end New

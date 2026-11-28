@@ -105,7 +105,7 @@ lemma f_even : Even D.f := by
   simp [Nat.even_pow, D.towerExp_ne_zero]
 
 /-- The modulus `q₂ s = (q₀ d) ^ (s + 6)` is at most `x ^ (33 q₀ d)`. Here `q₀`, a multiple of
-`18480`, and the prime `d` with `K = ℚ(√-d)` are the fixed parameters, `s` is the exponent of the
+`1680`, and the prime `d` with `K = ℚ(√-d)` are the fixed parameters, `s` is the exponent of the
 tower and `x = exp logX` is the length of the prime sum. -/
 lemma q₂_le : (P.q₂ D.towerExp : ℝ) ≤ D.x ^ (33 * (P.q₀ * P.d)) := by
   have h_exponent : (D.towerExp + 6 : ℝ) ≤ 33 * D.logX := by

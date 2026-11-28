@@ -29,8 +29,8 @@ values of its conjugates over `K`.
   the root discriminant of `E` divided by `√d`.
 
 Notions from other files:
-* `New.Parameters`: a multiple `q₀` of `18480 = 16 · 3 · 5 · 7 · 11` and a prime `d` with
-  `d ≡ q₀/2 - 1 mod q₀`; `New.Parameters.q₁` is `3 ^ c * 2 ^ s * q₀`, with `c = ⌊log₃ s⌋ + 5`.
+* `New.Parameters`: a geometric level `q₀` divisible by 1680 and an admissible prime `d`;
+  `New.Parameters.q₁` is `3 ^ c * 2 ^ s * q₀`, with `c = ⌊log₃ s⌋ + 5`.
 * `New.Parameters.Φ`: `P.Φ s` is the group of infinite places of `E`. It is distinct from the bare
   `Φ` of the CM type of `E` (`New.CMType`): `Φ v : E →+* ℂ` is the embedding over `K` inducing `v`.
 * `New.WeilData`: an imaginary element ȷ, a finite idele α and a splitting character υ.
@@ -345,7 +345,7 @@ lemma q₁_mul_alpha_mem : P.q₁ s * (P.α s).val ∈ Ô (P.E s) := by
 
 /-- The order `q₁` of `ζ` is a multiple of `12`. -/
 lemma twelve_dvd_q₁ : 12 ∣ P.q₁ s :=
-  (show 12 ∣ 18480 by norm_num).trans (P.dvd_q₀.mul_right (towerDeg s))
+  (show 12 ∣ 1680 by norm_num).trans (P.dvd_q₀.mul_right (towerDeg s))
 
 /-- The powers of `ζ`, that is the roots of unity of `E` (see `exists_zeta_pow_eq`), have norm `1`
 over `K`. -/

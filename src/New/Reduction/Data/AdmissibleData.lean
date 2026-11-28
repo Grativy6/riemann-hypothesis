@@ -34,8 +34,8 @@ Letters used in comments, and the names in the code:
   between `m log b` and `24 m log b`.
 
 Notions from other files:
-* `New.Parameters`: a multiple `q₀` of `18480 = 16 · 3 · 5 · 7 · 11` and a prime `d` with
-  `d ≡ q₀/2 - 1 mod q₀`; they determine the field `P.K = ℚ(√-d)`.
+* `New.Parameters`: a geometric level `q₀` divisible by 1680 and an admissible prime `d`; they
+  determine the field `P.K = ℚ(√-d)`.
 * `New.towerDeg s`: the number `3 l₀ 2 ^ s`, where `l₀ = New.l₀ s` is, for `s ≥ 1`, the least power
   of `3` above `27 s`. The modulus `P.q₁ s` is `q₀ * towerDeg s`.
 * `P.E s`, `P.Φ s`: the field `E = K(ζ)`, with `ζ` a primitive `q₁`-th root of unity, and its

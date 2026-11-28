@@ -87,7 +87,7 @@ open Real Finset Data Module Submodule
 
 /-- **Main inequality.** For the data `D` we have `m rem ≤ f a log⁵ b`.
 
-The parameters `P` are a multiple `q₀` of `18480` and a prime `d ≡ q₀/2 - 1 mod q₀`. The scales are
+The parameters `P` are a multiple `q₀` of `1680` and a prime `d`. The scales are
 integers with `(log b) ^ 100 ≤ x`, `x ^ 10⁶ ≤ x₁`, `x₁ ^ 10⁶ ≤ b` and
 `log log b ≥ 10¹² P.constantBound`. -/
 theorem star_inequality {P : Parameters} (D : Data P) :

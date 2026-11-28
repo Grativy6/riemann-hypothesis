@@ -39,8 +39,7 @@ and are not all zero. A vector `f` is read as the function `f y = θ(ϱ(y) f)` o
   one vector that generates the finite part.
 
 Notions from other files:
-* `New.Parameters`: The fixed parameters: a multiple `q₀` of `18480 = 16 · 3 · 5 · 7 · 11` and a
-  prime `d` with `d ≡ q₀/2 - 1 mod q₀`.
+* `New.Parameters`: a geometric level `q₀` divisible by 1680 and an admissible prime `d`.
 * `New.Parameters.E`: The field E = K(ζ) obtained from K = ℚ(√-d) by adjoining a primitive root of
   unity ζ of order `P.q₁ s`.
 * `New.Space`: a hermitian space with a point, given by a matrix J over E and x in GL_n(𝔸) with xᴴJx

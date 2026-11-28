@@ -43,8 +43,7 @@ is the number of infinite places of E. Short forms span at a free level.
   ramified source forms.
 
 Notions from other files:
-* `New.Parameters`: The fixed parameters: a multiple `q₀` of `18480 = 16 · 3 · 5 · 7 · 11` and a
-  prime `d` with `d ≡ q₀/2 - 1 mod q₀`.
+* `New.Parameters`: a geometric level `q₀` divisible by 1680 and an admissible prime `d`.
 * `New.weylGauge`: The gauge of ξ at g: the largest p-adic absolute value of a coordinate of
   g⁻¹·ι(ξ), with g⁻¹ acting in weight (κ, e).
 * `New.weylNormSq`: The squared norm ξ* G ξ for the integer Gram matrix G = `New.weylGram`.
