@@ -639,7 +639,8 @@ lemma sum_thetaTailIntegral_le (j : Fin 2) {δ : ℝ} (hδ : 0 < δ) :
   exact add_le_add (hC T hT α hα) (hC T hT _ (norm_mul_moebius_le_one hα))
 
 /-- For `n = 2^k m` with `m` odd, the correction for denominator class `r` is
-`(2/r)^k (-χ₄(r)/m)`. Multiplying by `(-d/m)` restores the Legendre coefficient at an odd prime `d`. -/
+`(2/r)^k (-χ₄(r)/m)`. Multiplying by `(-d/m)` restores the Legendre coefficient
+at an odd prime `d`. -/
 def twistReciprocityFactor (r n : ℕ) : ℤ :=
   J(2 | r) ^ n.factorization 2 * J(-(χ₄ (r : ZMod 4)) | ordCompl[2] n)
 
@@ -854,7 +855,8 @@ lemma zero_density_quadTwist {N Q : ℕ} [NeZero N] {δ : ℝ} (hδ : 0 < δ) (H
   rw [hT, ← Nat.cast_mul, floor_natCast]
   exact (Nat.le_mul_of_pos_left d (NeZero.pos _)).trans h_cond
 
-/-- **Choice of the prime.** In any invertible class modulo Q, there are arbitrarily large odd primes
+/-- **Choice of the prime.** In any invertible class modulo Q, there are arbitrarily large
+odd primes
 coprime to N for which none of the twists of characters modulo N have a zero in the given box.
 The character level N and the search modulus Q can be chosen independently. -/
 lemma exists_entireL_quadTwist_ne_zero {N Q : ℕ} [NeZero N] [NeZero Q] {β : ℝ} (H : ℝ)

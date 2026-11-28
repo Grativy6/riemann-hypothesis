@@ -9,7 +9,8 @@ import Lib.Analytic.QuadraticTwist
 
 `New.LFunction_ne_zero_of_primeRemainder_le`: an eventual upper bound `R_q(x) ≤ A * x ^ (β - 1)` for
 the remainder of a sum over prime powers `≡ 1` mod `q` with weights depending on a prime `d`, for
-each sufficiently large prime `d` in a reduced class of any modulus, excludes zeros `s ≠ 1` of the `L(s, ψ)`, `ψ` mod `q`, in `re s > β`.
+each sufficiently large prime `d` in a reduced class of any modulus, excludes zeros `s ≠ 1`
+of the `L(s, ψ)`, `ψ` mod `q`, in `re s > β`.
 
 Notions from other files:
 * `primeRemainder d q x`: the remainder `R_q(x) = ∑_{n ≤ x} λ(n) (1/n - 1/x) - log x / φ(q) - c_q`,
@@ -21,7 +22,8 @@ Notions from other files:
 
 ## Relation to the literature
 
-The hypotheses concern only the remainders, for all sufficiently large primes `d` of the class, and not the real zeros
+The hypotheses concern only the remainders, for all sufficiently large primes `d` of the class,
+and not the real zeros
 of the `L(s, ψ)`. In the literature: a one-sided bound for a weighted sum over primes `≡ 1` modulo
 `q` gives a zero-free half-plane if there are no real zeros. Related work: M. Suzuki, On variants of
 Chebyshev's conjecture, arXiv 2411.07436, 2024; Montgomery–Vaughan, Multiplicative Number Theory I,
