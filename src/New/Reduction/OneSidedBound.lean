@@ -255,8 +255,8 @@ theorem grh : DirichletLNonvanishingRightOfHalf := by
   obtain ⟨β, hβ, hβρ⟩ : ∃ β : ℝ, 1 / 2 < β ∧ β < ρ.re := exists_between hρ
   -- Work at the least level divisible by both 18480 and the conductor of the character.
   let N := Nat.lcm 18480 χ.conductor
-  let : NeZero χ.conductor := ⟨χ.conductor_ne_zero⟩
-  let : NeZero N := ⟨Nat.lcm_ne_zero (by decide) χ.conductor_ne_zero⟩
+  have : NeZero χ.conductor := ⟨χ.conductor_ne_zero⟩
+  have : NeZero N := ⟨Nat.lcm_ne_zero (by decide) χ.conductor_ne_zero⟩
   have hN : 18480 ∣ N := Nat.dvd_lcm_left _ _
   have hf : χ.conductor ∣ N := Nat.dvd_lcm_right _ _
   let a := N / 2 - 1
