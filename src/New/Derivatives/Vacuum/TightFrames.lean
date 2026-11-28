@@ -41,8 +41,8 @@ stands for the vector of its images `τ y` under the CM type and `y† z = ∑ �
   pulled back along a tight frame, is the theta function of a vector with integral values.
 
 Notions from other files:
-* `New.Parameters`: a multiple `q₀` of `18480 = 16 · 3 · 5 · 7 · 11` and a prime `d` with
-  `d ≡ q₀/2 - 1 mod q₀`. The CM field `E = P.E s` is generated over `K` by a primitive `q₁`-th root
+* `New.Parameters`: a geometric level `q₀` divisible by 1680 and an admissible prime `d`. The CM
+  field `E = P.E s` is generated over `K` by a primitive `q₁`-th root
   of unity `ζ`, `q₁ = P.q₁ s`, and `Φ τ : E →+* ℂ` is the embedding of its CM type at the infinite
   place `τ`.
 * `New.finiteImage`: for a family `γ` in `E`, the finite adeles `α⁻¹ γ k`, with `α = P.α s` the

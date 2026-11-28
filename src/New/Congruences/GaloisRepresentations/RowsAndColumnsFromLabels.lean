@@ -133,7 +133,7 @@ lemma not_q₂_dvd_mul_pow_mul {j t : ℕ} (hj : j ∈ Set.Icc 1 D.m)
   -- For a prime `p ≠ ℓ` dividing `q₀` we would get `p ^ D.towerExp ∣ j * t`, but
   -- `0 < j * t < p ^ D.towerExp`.
   intro h_dvd
-  -- one of the primes `2` and `5`, which divide `18480` and hence `q₀`
+  -- one of the primes `2` and `5`, which divide `1680` and hence `q₀`
   obtain ⟨p, hpℓ, hp_prime, hp_dvd⟩ : ∃ p : ℕ, p ≠ ℓ ∧ p.Prime ∧ p ∣ P.q₀ := by
     by_cases h_two : 2 = ℓ
     · exact ⟨5, by omega, Nat.prime_five, Nat.dvd_trans (by norm_num) P.dvd_q₀⟩
@@ -402,7 +402,7 @@ lemma IsLiftSetting.exists_isCommonRootPower_of_isPrimitivePolynomial (hc : IsLi
   have h_chosen : D.IsChosen (O.chosenPlace i) := hc.isChosen_chosenPlace i
   obtain ⟨l, hl⟩ : O.chosenPlace i ∈ placesAboveM D := h_chosen.mem_placesAboveM
   obtain ⟨r_exp, hr_exp⟩ := D.exists_r_eq_three_pow
-  -- `q = D.levelPrime l`, so `q₂ ^ 2` divides `q - 1`; and so does `9`, as `3 ∣ 18480 ∣ q₀ ∣ q₂`
+  -- `q = D.levelPrime l`, so `q₂ ^ 2` divides `q - 1`; and so does `9`, as `3 ∣ 1680 ∣ q₀ ∣ q₂`
   have h_Mω_sq : P.q₂ D.towerExp ^ 2 ∣ Nat.card (ResField (O.chosenPlace i)) - 1 := by
     simpa only [card_ResField, D.q_eq_levelPrime hl] using D.dvd_levelPrime_sub_one l
   have h_nine : 3 ^ 2 ∣ Nat.card (ResField (O.chosenPlace i)) - 1 := by

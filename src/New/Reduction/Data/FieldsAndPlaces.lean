@@ -1,5 +1,7 @@
 module
 
+public import New.Reduction.Data.PrimeConditions
+
 import TauCeti.NumberTheory.Cyclotomic.Irreducible
 public import Mathlib.NumberTheory.Cyclotomic.Gal
 import Mathlib.Algebra.Polynomial.Eval.Irreducible
@@ -12,7 +14,8 @@ import Lib.ClassField.Places.ProfiniteGalois
 /-!
 # The parameters q₀ and d, the field E = K(ζ), its infinite places and its roots of unity
 
-Fix a multiple `q₀` of `18480` and a prime `d ≡ q₀/2 - 1 mod q₀`. Let `K = ℚ(√-d)`, and let
+Fix a geometric level `q₀` divisible by `1680` and a prime meeting the norm and splitting
+conditions. Let `K = ℚ(√-d)`, and let
 `E = K(ζ)` with `ζ` of order `q₁ = q₀ * towerDeg s`. The file counts the places, describes how they
 act on `ζ`, shows that every root of unity of `E` is a power of `ζ`, and writes norms from `E` to
 `K` as products over the embeddings `Φ v`. In the comments `c = ⌊log₃ s⌋ + 5`, so that
@@ -21,7 +24,8 @@ of `E`.
 
 ## Main definitions and results
 
-* `New.Parameters`: a multiple `q₀` of `18480` and a prime `d ≡ q₀/2 - 1 mod q₀`. Then `d ≡ 7 mod 8`
+* `New.Parameters`: a geometric level `q₀` divisible by `1680` and an admissible prime `d`. Then
+  `d ≡ 7 mod 8`
   and `(p / d) = 1` for each prime `p ∣ q₁` (`New.Parameters.chiK_eq_one_of_dvd`).
 * `New.Parameters.irreducible_cyclotomic`: the cyclotomic polynomial of order `q₁` is irreducible
   over `K`, so `Gal(E/K) = (ℤ/q₁)ˣ`. `E` embeds in `ℚ(ζ_{q₁ d})`, hence is abelian over `ℚ`.
@@ -64,36 +68,39 @@ section Parameters
 open NumberField Polynomial IsCyclotomicExtension jacobiSym InfinitePlace IsAlgClosed cyclotomic
   NeZero IsMulCommutative
 
-/-- The fixed parameters: a multiple `q₀` of `18480 = 16 · 3 · 5 · 7 · 11` and a prime `d` with
-`d ≡ q₀/2 - 1 mod q₀`. The congruence is stated as: `q₀` divides `2 (d + 1)` but not `d + 1`.
-The first part forces `q₀ ≠ 0`; as `q₀` is even, it says that `q₀/2` divides `d + 1`, and the
-second part says that the quotient is odd. The exponent `ε` of the scales is not a field: it enters
-only the existence of admissible data (`New.eventually_exists_data`). -/
+/-- The geometric level is a multiple of 1680. Its prime factors divide the norm (d+1)/4,
+one factor of the level separates powers of d from -1, and 11 splits in the quadratic field. -/
 @[local grind]
 structure New.Parameters where
-  /-- The modulus `q₀`. -/
+  /-- The cyclotomic base level. -/
   q₀ : ℕ
-  /-- The prime `d` with `K = ℚ(√-d)`. -/
+  /-- The prime defining the imaginary quadratic field. -/
   d : ℕ
-  /-- `q₀` is a multiple of `18480 = 16 · 3 · 5 · 7 · 11`. -/
-  dvd_q₀ : 18480 ∣ q₀
-  /-- `d` is prime. -/
+  /-- The fixed divisors required by the geometric tower. -/
+  dvd_q₀ : 1680 ∣ q₀
+  /-- Primality of the discriminant parameter. -/
   d_prime : d.Prime
-  /-- `d ≡ q₀/2 - 1 mod q₀`, stated as: `q₀` divides `2 (d + 1)` but not `d + 1`. -/
-  q₀_dvd_and_not_dvd : q₀ ∣ 2 * (d + 1) ∧ ¬q₀ ∣ d + 1
+  /-- The norm, separating divisor and small-prime splitting requirements. -/
+  prime_conditions : New.GeometricPrimeConditions q₀ d
 
 namespace New.Parameters
 
 variable (P : Parameters) (s : ℕ)
 
-instance : NeZero P.q₀ := ⟨by grind [zero_dvd_iff]⟩
+instance : NeZero P.q₀ := ⟨fun h ↦ by
+  have div := P.prime_conditions.norm_divisibility P.d P.d_prime (h ▸ dvd_zero _)
+  have le := Nat.le_of_dvd (Nat.succ_pos P.d) div
+  have := P.d_prime.two_le
+  omega⟩
 
-/-- The prime `d` is congruent to 7 modulo 8: `d + 1` is an odd multiple of `q₀/2`, and `16` divides
-`q₀`. -/
+/-- The norm condition at the prime two gives d = 7 modulo eight. -/
 @[local grind! .]
 instance instPrimeSevenModEight : PrimeSevenModEight P.d where
   out := P.d_prime
-  mod_eight := by grind [→ dvd_trans]
+  mod_eight := by
+    have := P.prime_conditions.norm_divisibility 2 Nat.prime_two
+      ((by decide : 2 ∣ 1680).trans P.dvd_q₀)
+    omega
 
 /-- The number `l₀`: for `s ≥ 1`, the least power of `3` above `27 s`. -/
 def _root_.New.l₀ (s : ℕ) : ℕ := 3 ^ (Nat.log 3 s + 4)
@@ -118,11 +125,11 @@ lemma _root_.New.towerDeg_eq (s : ℕ) : towerDeg s = 3 * l₀ s * 2 ^ s := by
 /-- The order `q₁ = q₀ * towerDeg s` of the root of unity `ζ` that generates `E` over `K`. -/
 abbrev q₁ : ℕ := P.q₀ * towerDeg s
 
-lemma two_dvd_q₀ : 2 ∣ P.q₀ := (by norm_num : 2 ∣ 18480).trans P.dvd_q₀
+lemma two_dvd_q₀ : 2 ∣ P.q₀ := (by norm_num : 2 ∣ 1680).trans P.dvd_q₀
 
-lemma three_dvd_q₀ : 3 ∣ P.q₀ := (by norm_num : 3 ∣ 18480).trans P.dvd_q₀
+lemma three_dvd_q₀ : 3 ∣ P.q₀ := (by norm_num : 3 ∣ 1680).trans P.dvd_q₀
 
-/-- Let `P : Parameters` consist of the modulus `q₀` and the prime `d ≡ q₀/2 - 1 mod q₀`. Every
+/-- Let `P : Parameters` consist of the modulus `q₀` and the admissible prime `d`. Every
 prime `p` dividing `P.q₁ s = q₀ * towerDeg s`, where `towerDeg s` is a power of `3` times `2 ^ s`,
 divides `(d + 1) / 4`, the norm of `(1 + √-d) / 2`. -/
 lemma dvd_d_add_one_div_four_of_dvd_q₁ {p s : ℕ} (hp : p.Prime) (hp_dvd : p ∣ P.q₁ s) :
@@ -133,21 +140,21 @@ lemma dvd_d_add_one_div_four_of_dvd_q₁ {p s : ℕ} (hp : p.Prime) (hp_dvd : p 
     · exact h_left
     · exact (hp.dvd_of_dvd_pow h_three).trans P.three_dvd_q₀
     · exact (hp.dvd_of_dvd_pow h_two).trans P.two_dvd_q₀
-  have h_mod_eight : P.d % 8 = 7 := PrimeSevenModEight.mod_eight
-  have h_dvd : p ∣ 2 * (P.d + 1) := h_dvd_q₀.trans P.q₀_dvd_and_not_dvd.1
-  -- As `d % 8 = 7`, this number is `2 ^ 3` times the even number `(d + 1) / 4`.
-  rw [show 2 * (P.d + 1) = 2 ^ 3 * ((P.d + 1) / 4) by omega] at h_dvd
-  obtain h_two | h_quot := hp.dvd_mul.1 h_dvd
-  · exact (hp.dvd_of_dvd_pow h_two).trans (by omega)
-  · exact h_quot
+  have hdvd := P.prime_conditions.norm_divisibility p hp h_dvd_q₀
+  exact (Nat.dvd_div_iff_mul_dvd (dvd_trans (dvd_mul_right 4 p) hdvd)).2
+    (by simpa [Nat.mul_comm] using hdvd)
 
-/-- The prime `d` exceeds `64`, as `2 (d + 1)` is a positive multiple of `q₀ ≥ 18480`. -/
+/-- The norm conditions at five and seven already give 140 | d+1. -/
 lemma sixty_four_lt_d : 64 < P.d := by
-  have h_le : 18480 ≤ 2 * (P.d + 1) := Nat.le_of_dvd (by omega)
-    (P.dvd_q₀.trans P.q₀_dvd_and_not_dvd.1)
+  have h20 := P.prime_conditions.norm_divisibility 5 Nat.prime_five
+    ((by decide : 5 ∣ 1680).trans P.dvd_q₀)
+  have h28 := P.prime_conditions.norm_divisibility 7 (by decide)
+    ((by decide : 7 ∣ 1680).trans P.dvd_q₀)
+  have h140 : 140 ∣ P.d + 1 := Nat.lcm_dvd h20 h28
+  have := Nat.le_of_dvd (Nat.succ_pos P.d) h140
   omega
 
-/-- Let `P : Parameters` consist of the modulus `q₀` and the prime `d ≡ q₀/2 - 1 mod q₀`. For every
+/-- Let `P : Parameters` consist of the modulus `q₀` and the admissible prime `d`. For every
 prime `p` dividing `P.q₁ s = q₀ * towerDeg s`, the Legendre symbol `chiK d p = (p / d)` is `1`,
 which is the criterion for `p` to split in `K = ℚ(√-d)`. -/
 lemma chiK_eq_one_of_dvd {p s : ℕ} (hp : p.Prime) (hp_dvd : p ∣ P.q₁ s) : chiK P.d p = 1 := by
@@ -169,11 +176,14 @@ lemma chiK_eq_one_of_dvd {p s : ℕ} (hp : p.Prime) (hp_dvd : p ∣ P.q₁ s) : 
 
 /-- A prime that does not split in `K = ℚ(√-d)`, that is `χ_K(p) ≠ 1`, is at least `13`. -/
 lemma thirteen_le_of_chiK_ne_one {p : ℕ} (hp : p.Prime) (h_ne : chiK P.d p ≠ 1) : 13 ≤ p := by
-  -- Every prime below `13` divides `18480`, hence `q₀` and `q₁`.
-  by_contra h_lt
-  have h_dvd : p ∣ 18480 := by interval_cases p <;> trivial
+  by_contra! h_lt
+  by_cases h11 : p = 11
+  · subst p
+    apply h_ne
+    exact (chiK_eq_legendreSym P.d 11).trans <|
+      (legendreSym.to_jacobiSym P.d 11).trans P.prime_conditions.eleven_splits
+  have h_dvd : p ∣ 1680 := by interval_cases p <;> trivial
   exact h_ne (P.chiK_eq_one_of_dvd hp (h_dvd.trans (P.dvd_q₀.mul_right (towerDeg 0))))
-
 /-! ### The fields `K` and `E` -/
 
 /-- The imaginary quadratic field K = ℚ(i√d), as a subfield of ℂ. -/
@@ -188,7 +198,7 @@ def q₂ : ℕ := (P.q₀ * P.d) ^ (s + 6)
 `q₁ = q₀ * towerDeg s = q₀ * 3 ^ (⌊log₃ s⌋ + 5) * 2 ^ s` is the order of `ζ`, divides
 `q₂ = (q₀ d) ^ (s + 6)`. -/
 lemma q₁_mul_d_dvd_q₂ {P : Parameters} {s : ℕ} : q₁ P s * P.d ∣ P.q₂ s := by
-  have h_six : 3 * 2 ∣ P.q₀ * P.d := ((by norm_num : 3 * 2 ∣ 18480).trans P.dvd_q₀).mul_right _
+  have h_six : 3 * 2 ∣ P.q₀ * P.d := ((by norm_num : 3 * 2 ∣ 1680).trans P.dvd_q₀).mul_right _
   calc P.q₁ s * P.d = P.q₀ * P.d * (3 ^ (Nat.log 3 s + 5) * 2 ^ s) := mul_right_comm ..
     _ ∣ P.q₀ * P.d * (3 ^ (s + 5) * 2 ^ (s + 5)) := by grw [Nat.log_le_self, ← s.le_add_right 5]
     _ ∣ P.q₀ * P.d * (P.q₀ * P.d) ^ (s + 5) := by grw [← mul_pow, h_six]
@@ -433,25 +443,12 @@ lemma galOfPlace_placeOfInt_zeta {ν : ℤ} (h_cop : IsCoprime ν P.q₀) :
         rw [Int.emod_def, zpow_sub₀ (isPrimitiveRoot_zeta.ne_zero (NeZero.ne _)), zpow_mul,
           isPrimitiveRoot_zeta.zpow_eq_one, one_zpow, div_one]
 
-/-- For parameters `P`, no power of the prime `d` is congruent to `-1` modulo `q₀`. As `d` is odd
-and `q₀` divides `2 (d + 1)` but not `d + 1`, we have `d ^ 2 = 1` in `ZMod q₀`, and the powers `1`
-and `d` of `d` both differ from `-1`. -/
+/-- A divisor of q₀ sees d as an involution distinct from -1. This rules out a power equal
+to -1 modulo the full level even when d has larger order there. -/
 lemma d_pow_ne_neg_one (n : ℕ) : (P.d : ZMod P.q₀) ^ n ≠ -1 := by
-  -- In `ZMod q₀` we have `2 (d + 1) = 0` and `d + 1 ≠ 0`, with `d = 2 w + 1` odd. So `d ^ 2 = 1`,
-  -- and the powers of `d` are `1` and `d`, both different from `-1`.
-  obtain ⟨w, hw⟩ : Odd P.d := P.d_prime.odd_of_ne_two (P.sixty_four_lt_d.trans' (by norm_num)).ne'
-  have hd : (P.d : ZMod P.q₀) = 2 * w + 1 := by simp [hw]
-  have h_zero : 2 * (P.d + 1 : ZMod P.q₀) = 0 :=
-    mod_cast (natCast_eq_zero_iff _ _).2 P.q₀_dvd_and_not_dvd.1
-  have h_ne : (P.d + 1 : ZMod P.q₀) ≠ 0 :=
-    mod_cast (natCast_eq_zero_iff _ _).not.2 P.q₀_dvd_and_not_dvd.2
-  have h_sq : (P.d : ZMod P.q₀) ^ 2 = 1 := by linear_combination (P.d + 1) * hd + w * h_zero
-  induction n using Nat.twoStepInduction with
-  | zero =>
-    -- If `1 = -1` then `2 = 0`, so `d + 1 = 2 (w + 1) = 0`.
-    exact fun h_one ↦ h_ne (by linear_combination hd + (w + 1) * h_one)
-  | one => exact fun h_one ↦ h_ne (by linear_combination h_one)
-  | more n ih _ => simpa [pow_add, h_sq] using ih
+  have h8 : P.d % 8 = 7 := PrimeSevenModEight.mod_eight
+  exact pow_ne_neg_one_of_separating_divisor (Nat.odd_iff.2 (by omega))
+    P.prime_conditions.separating_divisor n
 
 /-- Let `ν` be an integer and suppose `q₀ ∣ q₁`. The place `P.placeOfInt s ν` of `E` is the one that
 corresponds to `ν mod q₁` under the isomorphism of the group of places with `(ℤ/q₁)ˣ` if `ν` is a
@@ -508,7 +505,7 @@ lemma exists_zeta_pow_eq {y : P.E s} (hy : IsOfFinOrder y) : ∃ k < P.q₁ s, �
 
 /-- The norm of `ζ` from `E` to `K` is `1`, as `q₁ ≠ 2`. -/
 lemma norm_zeta_eq_one : Algebra.norm P.K (ζ P s) = 1 := by
-  have h_le : 18480 ≤ P.q₁ s := Nat.le_of_dvd (NeZero.pos _) (P.dvd_q₀.mul_right _)
+  have h_le : 1680 ≤ P.q₁ s := Nat.le_of_dvd (NeZero.pos _) (P.dvd_q₀.mul_right _)
   exact isPrimitiveRoot_zeta.norm_eq_one (by omega) (P.irreducible_cyclotomic s)
 
 /-- Let `Φ v` be the embedding of `E` in `ℂ` chosen at the infinite place `v`: it induces `v` and

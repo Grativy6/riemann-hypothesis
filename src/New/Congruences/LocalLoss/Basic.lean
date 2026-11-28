@@ -37,8 +37,8 @@ the CM type and `-1` if not.
   values in `(O/ℓ^M O)^n`, can miss these relations.
 
 Notions from other files:
-* `New.Parameters`: The fixed parameters: a multiple `q₀` of `18480 = 16 · 3 · 5 · 7 · 11` and a
-  prime `d` with `d ≡ q₀/2 - 1 mod q₀`. For these, `P.E s = K(ζ)`, where `K = ℚ(√-d)` and `P.ζ s` is
+* `New.Parameters`: a geometric level `q₀` divisible by 1680 and an admissible prime `d`. For
+  these, `P.E s = K(ζ)`, where `K = ℚ(√-d)` and `P.ζ s` is
   a root of unity of order `P.q₁ s = 3^c 2^s q₀`, `c = ⌊log₃ s⌋ + 5`. The group `P.Φ s` of infinite
   places of `P.E s` is identified with `(ℤ/q₁)ˣ`, and `P.placeClass` reduces it modulo a divisor of
   `q₁`.

@@ -27,8 +27,7 @@ polynomial of order `q₁`; this letter P is not the parameters.
   such `p`, `New.Parameters.q_eq_pow_orderOf_frobElem` gives the norm of `w`.
 
 Notions from other files:
-* `New.Parameters`: a multiple `q₀` of `18480 = 16 · 3 · 5 · 7 · 11` and a prime `d` with
-  `d ≡ q₀/2 - 1 mod q₀`.
+* `New.Parameters`: a geometric level `q₀` divisible by 1680 and an admissible prime `d`.
 * `New.Parameters.q₁`: the number `q₁ = 3 ^ c * 2 ^ s * q₀`, with `c = ⌊log₃ s⌋ + 5`.
 * `New.Parameters.Φ`: `P.Φ s` is the group of infinite places of `E`. It is distinct from the bare
   `Φ` of the CM type of `E` (`New.CMType`): `Φ v : E →+* ℂ` is the embedding over `K` inducing `v`.
@@ -144,7 +143,7 @@ lemma star_betaKInE (P : Parameters) (s : ℕ) : star (betaKInE P s) = 1 - P.bet
 /-- The field `E` contains a primitive root of unity of order `5040`. -/
 instance : HasPrimitiveRoot5040 (P.E s) where
   exists_primitive_root := by
-    -- `5040` divides `18480 * 3`, hence `q₁`; take the power `q₁ / 5040` of `ζ`
+    -- `5040` divides `1680 * 3`, hence `q₁`; take the power `q₁ / 5040` of `ζ`
     have h_three : 3 ∣ towerDeg s := (dvd_pow_self 3 (Nat.succ_ne_zero _)).mul_right _
     have h_dvd : 5040 ∣ P.q₁ s := .trans (by norm_num) (mul_dvd_mul P.dvd_q₀ h_three)
     exact ⟨P.ζ s ^ (P.q₁ s / 5040), isPrimitiveRoot_zeta.pow one_le (Nat.div_mul_cancel h_dvd).symm⟩
