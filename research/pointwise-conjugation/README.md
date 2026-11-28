@@ -48,7 +48,7 @@ Put $A=(0,0)$, $B=(1,0)$ and $C=(0,m)$ on a coordinate grid. Fix $A$ and swap th
 $$
  mb=k,\qquad md=0.
 $$
-Over any commutative ring such a map exists exactly when $m$ divides $k$. For an unscaled swap $m$ must be a unit, and the map $(x,y)\mapsto(m^{-1}y,mx)$ then squares to the identity. Over $\mathbb Z/n$ the existence test becomes $\gcd(m,n)\mid k$. When it passes, each entry of the second column has $\gcd(m,n)$ choices, giving exactly $\gcd(m,n)^2$ matrices. This count covers every matrix because the first column is forced. [Linear extension](Triangle.lean) · [Exact count](FiberCount.lean).
+Over any commutative ring such a map exists exactly when $m$ divides $k$. For an unscaled swap $m$ must be a unit, and the map $(x,y)\mapsto(m^{-1}y,mx)$ then squares to the identity. Over $\mathbb Z/n$ the existence test becomes $\gcd(m,n)\mid k$. When it passes, each entry of the second column has $\gcd(m,n)$ choices, giving exactly $\gcd(m,n)^2$ matrices. The theorem `count_by_images` counts the matrices by the two matrix-vector products themselves. The forced first column and the two scalar equations give a bijection with its coefficient count. [Linear extension](Triangle.lean) · [Exact count](FiberCount.lean).
 
 | $m$ | $n$ | $k$ | Visible marks | Matrices satisfying the two scaled equations |
 | ---: | ---: | ---: | ---: | ---: |
@@ -62,5 +62,7 @@ At 289 the labels remain distinguishable. All six permutations act on the three 
 ## Provenance and replay
 
 Chris Pang's PAL question about what crosses a change of frame, and his suggestion to turn each proposed direction both ways, guided this comparison. The pointwise forward identity already belonged to the community proof. The bidirectional criterion, the calculations about the identity reading and the marked examples are research companions. The board follows an earlier question about which prescribed maps lift across a change of ring. [Earlier seventeen-and-$t$ calculation](https://github.com/Grativy6/hearthline/blob/028bc20d77dcdd4d78753eedd17b55b839c327a1/shelves/mathematics/seventeen-and-t/README.md).
+
+The nearby [tame-generator PR #8984](https://github.com/leanprover-community/riemann-hypothesis/pull/8984) already uses the pointwise rule elsewhere. Its patch applies cleanly to this change. [Sah's identity PR #9254](https://github.com/leanprover-community/riemann-hypothesis/pull/9254) deletes the adjoining lemma in `SelmerData.lean`, which gives a textual three-way conflict. In an isolated test we retained both disjoint deletions, retargeted our span call, and compiled both neighbors together with #9929. The two neighbor branches were used as read-only inputs.
 
 From this revision run `lake exe cache get`, `lake build`, and `bash research/pointwise-conjugation/replay.sh`. The seven companion files compile in a fresh directory. The board runs locally in a browser using exact integer arithmetic. [Replay script](replay.sh).

@@ -2,6 +2,8 @@ import Triangle
 import Mathlib.GroupTheory.Index
 import Mathlib.GroupTheory.OrderOfElement
 
+open Matrix
+
 namespace Hearthline.ThreeMarks
 
 variable {R : Type*} [CommRing R]
@@ -10,6 +12,22 @@ variable {R : Type*} [CommRing R]
 by the mark (1,0); multiplying the second column by m gives the requested image of (0,m). -/
 def Completion (m k : R) := {T : Matrix (Fin 2) (Fin 2) R //
   T 0 0 = 0 ∧ T 1 0 = k*m ∧ m*T 0 1 = k ∧ m*T 1 1 = 0}
+
+/-- The four entry conditions are equivalent to applying the actual matrix to the two
+marked column vectors. -/
+theorem acts_on_marks_iff (m k : R) (T : Matrix (Fin 2) (Fin 2) R) :
+    (T *ᵥ ![1,0] = ![0,k*m] ∧ T *ᵥ ![0,m] = ![k,0]) ↔
+      T 0 0 = 0 ∧ T 1 0 = k*m ∧ m*T 0 1 = k ∧ m*T 1 1 = 0 := by
+  simp [Matrix.mulVec, dotProduct, Fin.sum_univ_two, funext_iff, Fin.forall_fin_two, mul_comm,
+    and_assoc]
+
+def matrixEquiv (m k : R) :
+    {T : Matrix (Fin 2) (Fin 2) R // T *ᵥ ![1,0] = ![0,k*m] ∧ T *ᵥ ![0,m] = ![k,0]} ≃
+      Completion m k where
+  toFun T := ⟨T.val, (acts_on_marks_iff m k T.val).1 T.property⟩
+  invFun T := ⟨T.val, (acts_on_marks_iff m k T.val).2 T.property⟩
+  left_inv _ := rfl
+  right_inv _ := rfl
 
 /-- Both free entries of the second column can be counted independently. -/
 def columns (m k : R) : Completion m k ≃ ({b : R // m*b=k} × {d : R // m*d=0}) where
@@ -63,6 +81,13 @@ theorem completion_count (m n k : ℕ) [NeZero n] :
   · have : IsEmpty {b : ZMod n // (m : ZMod n)*b = (k : ZMod n)} :=
       ⟨fun t ↦ h ((dvd_mod_iff m n k).1 ⟨t.val,t.property.symm⟩)⟩
     simp
+
+/-- Count matrices by the two prescribed images under matrix-vector multiplication. -/
+theorem count_by_images (m n k : ℕ) [NeZero n] :
+    Nat.card {T : Matrix (Fin 2) (Fin 2) (ZMod n) //
+      T *ᵥ ![1,0] = ![0,(k:ZMod n)*m] ∧ T *ᵥ ![0,(m:ZMod n)] = ![(k:ZMod n),0]} =
+      if m.gcd n ∣ k then (m.gcd n)^2 else 0 :=
+  (Nat.card_congr (matrixEquiv _ _)).trans (completion_count m n k)
 
 example : Nat.card (Completion (17 : ZMod 289) 17) = 289 := by
   exact (completion_count 17 289 17).trans (by decide +kernel)
