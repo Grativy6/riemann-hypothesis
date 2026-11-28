@@ -252,8 +252,8 @@ lemma Parameters.exists_large_isSparse (P : Parameters) {s n H L : ℕ}
     have h_small : (ℓ + 1) * (2 * i) ≤ (L + 1) * (2 * l₀ s) := Nat.mul_le_mul (by omega) (by omega)
     linarith only [h_order, h_small, hL]
 
-/-- For the sparse places of class `-1` modulo `q₀`, the denominator of the cardinality
-bound is `(3 l₀ n 2ⁿ) W³`. Keeping the first factor lets the rank hypotheses bound it directly. -/
+/-- There is a sparse set `T` of places of class `-1` modulo `q₀` satisfying
+`towerDeg s ≤ #T * (3 * l₀ s * n * 2 ^ n * W ^ 3)`. -/
 lemma Parameters.exists_isSparse_card_factor (P : Parameters) {s n L : ℕ} {W : ℝ}
     (hn : 0 < n) (hW : 1 ≤ W)
     (h_lower : W ≤ 2 ^ s) (h_upper : 2 ^ s ≤ W ^ n) (h_room : (2 * l₀ s) ^ n ≤ W)
