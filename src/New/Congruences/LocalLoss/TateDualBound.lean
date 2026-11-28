@@ -237,6 +237,24 @@ lemma New.Selmer.comesFromClass_of_mem_ribetCocycles {ℓ : ℕ} [ThePrime ℓ] 
     rw [← cob_eq]
     exact coboundary_mem y₀
 
+/-- At a finitely generated crystalline cocycle lattice, solving the local linear equations
+modulo a nonzero coefficient ideal means lifting to an integral crystalline cocycle. -/
+theorem New.Selmer.map_crysCocycles_eq_obeying {ℓ : ℕ} [ThePrime ℓ] {Γ R d : Type}
+    [Group Γ] [CommRing R] [PadicIntegerRing R ℓ] [OverGp Γ ℓ] [Fintype d] [DecidableEq d]
+    (σ : Γ →* Matrix d d R) [Module.Finite R (crysCocycles (matrixLattice σ).ρ)]
+    {a : R} (ha : a ≠ 0) :
+    (crysCocycles (matrixLattice σ).ρ).map (((R ∙ a).mkQ.compLeft d).compLeft Γ) =
+      obeying (relationsOn (crysCocycles (matrixLattice σ).ρ)) (QuotSpan a) := by
+  apply map_mkQ_eq_obeying_relationsOn _ ha
+  intro z hz
+  -- A nonzero scalar from ℤ_ℓ is divisible by a. Saturation for that scalar suffices.
+  obtain ⟨t, ht, b, hb⟩ :=
+    (Algebra.IsAlgebraic.isAlgebraic (R := ℤ_[ℓ]) a).exists_ne_zero_dvd
+      (mem_nonZeroDivisors_of_ne_zero ha)
+  apply crysCocycles.mem_of_smul_mem ht
+  rw [← algebraMap_smul R, hb, mul_comm, mul_smul]
+  exact (crysCocycles (matrixLattice σ).ρ).smul_mem b hz
+
 /-- Let the map `𝒥.toGp` from `Γ` to the absolute Galois group of `ℚ_ℓ` be an open embedding, let
 `R` be the integer ring of a finite extension of `ℚ_ℓ`, and let `η : Γ →* G`. Let `u x` (`x : X`)
 and `ρ` be matrix representations of `G` over `R` of sizes `n` and `d`. Let the lattices of all
@@ -261,19 +279,9 @@ lemma New.Selmer.relLength_ribetCocycles_le {ℓ : ℕ} [ThePrime ℓ] {X n R Γ
         ((obeying (relationsOn (crysCocycles (matrixLattice (ρ.comp η)).ρ))
           (QuotSpan (ℓ ^ m : R))).comap (LinearMap.funLeft R (d → QuotSpan (ℓ ^ m : R)) η)) ≤
       dualDefect (InClass F K U) (matrixLattice (ρ.comp η)).tateDual := by
-  let L : GalLattice R Γ := matrixLattice (ρ.comp η)
-  let restrict : (G → d → QuotSpan (ℓ ^ m : R)) →ₗ[R] Γ → d → QuotSpan (ℓ ^ m : R) :=
-    LinearMap.funLeft R (d → QuotSpan (ℓ ^ m : R)) η
-  -- `N` holds the restrictions along `η`, `A` the reductions of the crystalline cocycles of `L`,
-  -- and `B` the maps that obey the linear relations that hold on these cocycles.
-  let N : Submodule R (Γ → d → QuotSpan (ℓ ^ m : R)) := (ribetCocycles u ρ (ℓ ^ m)).map restrict
-  let A : Submodule R (Γ → d → QuotSpan (ℓ ^ m : R)) :=
-    (crysCocycles L.ρ).map (((mkQ (R ∙ (ℓ : R) ^ m)).compLeft d).compLeft Γ)
-  let B : Submodule R (Γ → d → QuotSpan (ℓ ^ m : R)) :=
-    obeying (relationsOn (crysCocycles L.ρ)) (QuotSpan (ℓ ^ m : R))
-  have hN : ∀ s ∈ N, ComesFromClass (InClass F K U) (ρ.comp η) m s :=
+  have : Module.Finite R (crysCocycles (matrixLattice (ρ.comp η)).ρ) :=
+    crysCocycles.fg hL.isPotentiallyCrystalline
+  -- After restriction, the relations cut out precisely the integral crystalline reductions.
+  rw [relLength_comap, ← map_crysCocycles_eq_obeying _ (NeZero.ne (ℓ ^ m : R))]
+  exact relLength_le_of_comesFromClass h_emb hL <|
     Set.forall_mem_image.2 fun w hw ↦ comesFromClass_of_mem_ribetCocycles hu hw
-  calc relLength (ribetCocycles u ρ (ℓ ^ m)) (B.comap restrict)
-      = relLength N B := relLength_comap (ribetCocycles u ρ (ℓ ^ m)) restrict
-    _ ≤ relLength N A := relLength_mono le_rfl (map_le_iff_le_comap.2 mkQ_mem_obeying_relationsOn)
-    _ ≤ dualDefect (InClass F K U) L.tateDual := relLength_le_of_comesFromClass h_emb hL hN
